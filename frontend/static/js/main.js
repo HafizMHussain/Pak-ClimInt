@@ -560,6 +560,13 @@ Promise.all([
 // a dashboard page — results are re-rendered from the cached agent JSON,
 // never re-run. Freshness window matches the dashboards (30 min).
 function restoreSession() {
+  // A fresh login opens the portal clean: nothing is selected, loaded
+  // or restored until the user acts. The previous session's cached
+  // panel pointer is dropped so it cannot come back later either.
+  if (window.FRESH_LOGIN) {
+    try { localStorage.removeItem("pakclimint.lastPanel"); } catch { /* ignore */ }
+    return;
+  }
   let last = null;
   try { last = JSON.parse(localStorage.getItem("pakclimint.lastPanel")); } catch { /* ignore */ }
   if (!last || Date.now() - last.ts > 30 * 60 * 1000) return;

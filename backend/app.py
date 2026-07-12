@@ -123,6 +123,7 @@ def api_login():
             hmac.compare_digest(password, want_pw):
         session["user"] = email
         session.permanent = bool(body.get("remember"))
+        session["fresh_login"] = True
         return jsonify({"ok": True})
 
     # self-registered accounts (hashed, data/users.json)
@@ -131,6 +132,7 @@ def api_login():
             _hash_pw(password, user["salt"]), user["hash"]):
         session["user"] = email
         session.permanent = bool(body.get("remember"))
+        session["fresh_login"] = True
         return jsonify({"ok": True})
 
     return jsonify({"error": "invalid email or password"}), 401
@@ -162,6 +164,7 @@ def api_signup():
     _USERS_FILE.write_text(_json.dumps(users, indent=1), encoding="utf-8")
     session["user"] = email
     session.permanent = True
+    session["fresh_login"] = True
     return jsonify({"ok": True})
 
 
@@ -201,6 +204,7 @@ def api_google():
                                encoding="utf-8")
     session["user"] = email
     session.permanent = True
+    session["fresh_login"] = True
     return jsonify({"ok": True})
 
 
@@ -212,7 +216,11 @@ def logout():
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    # A freshly-logged-in session opens the portal CLEAN: the map page
+    # skips restoring the previous session's cached results, so nothing
+    # loads or runs until the user acts. The flag is consumed here.
+    fresh = bool(session.pop("fresh_login", False))
+    return render_template("index.html", fresh_login=fresh)
 
 
 @app.route("/risk")
