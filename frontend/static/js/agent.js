@@ -164,51 +164,58 @@ function dayStripHtml(days) {
       </div>`).join("")}</div></div>`;
 }
 
-/* ---------------- one-line headline (top of the page) ---------------- */
-// Compact "what's the story" line — every value quoted from the agent JSON.
+/* ------------- scrolling headline ticker (top of the page) -------------
+   News-ticker style: short items scroll continuously. For weather every
+   forecast day gets its own 1-line item; other agents tick through their
+   stations / cities / key numbers. All values quoted from the JSON. */
 function buildHeadline(pipe, d) {
-  const wd = (x) => new Date(x.date + "T00:00").toLocaleDateString("en", { weekday: "short" });
+  const wd = (x) => new Date(x.date + "T00:00").toLocaleDateString("en", { weekday: "long" });
+  const items = [];
   if (pipe === "weather") {
     const o24 = d.observed_rain_mm.last_24h.basin_mean;
     const f72 = d.forecast_rain_mm.next_72h.basin_mean;
-    const days = d.forecast_daily?.days || [];
-    let ahead = "";
-    if (days.length) {
-      const wettest = days.reduce((a, b) => (b.precip_mm > a.precip_mm ? b : a));
-      ahead = wettest.precip_mm >= 0.5
-        ? ` Wettest day ahead: <b>${wd(wettest)}</b> (${wettest.precip_mm} mm).`
-        : " No rain day expected this week.";
-    }
-    return `<b>${o24 ?? "n/a"} mm</b> of rain fell in the last 24 h; about <b>${f72 ?? "n/a"} mm</b> more is forecast over the next 3 days.${ahead}`;
-  }
-  if (pipe === "disaster") {
-    const stations = d.stations || {}, names = Object.keys(stations);
-    const above = names.filter((n) => stations[n].flood_category !== "normal");
-    const worst = d.worst_station;
-    if (!worst) return "No river station falls inside this area.";
-    return above.length
-      ? `<b>${above.length}/${names.length}</b> stations above normal — highest: <b>${worst.name}</b> at ${fmt(worst.peak_m3s)} m³/s (<b>${worst.flood_category.replace(/_/g, " ")}</b>).`
-      : `All <b>${names.length}</b> station(s) in their normal range — highest flow <b>${worst.name}</b> at ${fmt(worst.peak_m3s)} m³/s.`;
-  }
-  if (pipe === "terrain") {
-    return `<b>${fmt(d.basin_area_km2)} km²</b> analysed — elevation, slope and river network cached for the other agents.`;
-  }
-  if (pipe === "population") {
+    items.push(`Last 24 h: <b>${o24 ?? "n/a"} mm</b> rain observed`);
+    items.push(`Next 3 days: <b>${f72 ?? "n/a"} mm</b> forecast`);
+    (d.forecast_daily?.days || []).forEach((x) => {
+      items.push(`<b>${wd(x)}</b>: ${dayLabel(x)}, ${Math.round(x.temp_max_c)}°/${Math.round(x.temp_min_c)}°` +
+        (x.precip_mm >= 0.5 ? `, ${x.precip_mm} mm rain (${x.precip_probability_pct}%)` : ""));
+    });
+  } else if (pipe === "disaster") {
+    const stations = d.stations || {};
+    items.push(`GloFAS cycle <b>${d.forecast_date}</b>` +
+      (d.forecast_age_days ? ` (${d.forecast_age_days} day(s) old)` : ""));
+    Object.entries(stations).forEach(([n, st]) => {
+      items.push(`<b>${n}</b>: ${st.flood_category.replace(/_/g, " ")}, peak ${fmt(st.peak_m3s)} m³/s`);
+    });
+  } else if (pipe === "terrain") {
+    items.push(`AOI area: <b>${fmt(d.basin_area_km2)} km²</b>`);
+    items.push(`Elevation: <b>SRTM 90 m</b> DEM`);
+    items.push(`Rivers: <b>HydroSHEDS</b> flow accumulation`);
+    items.push(`<b>${Object.keys(d.layers || {}).length}</b> terrain layers cached`);
+  } else if (pipe === "population") {
     const pct = d.total_population ? Math.round(100 * d.floodplain_population / d.total_population) : null;
-    return `<b>${fmt(d.total_population)}</b> people live here; <b>${fmt(d.floodplain_population)}</b>${pct != null ? ` (${pct}%)` : ""} are on flood-prone flat land (proxy).`;
-  }
-  if (pipe === "urban") {
+    items.push(`People in AOI: <b>${fmt(d.total_population)}</b>`);
+    items.push(`On floodplain: <b>${fmt(d.floodplain_population)}</b>${pct != null ? ` (${pct}%)` : ""}`);
+    items.push(`Source: WorldPop 2020, 100 m grid`);
+  } else if (pipe === "urban") {
     const flagged = d.flagged || [];
-    return flagged.length
-      ? `<b>${flagged.join(", ")}</b> flagged for possible urban flooding — heaviest 24 h rain <b>${d.max_obs24_mm} mm</b>.`
-      : `All <b>${d.cities.length}</b> cities clear — heaviest 24 h rain <b>${d.max_obs24_mm} mm</b>, below the ${d.thresholds_mm_24h.watch} mm watch level.`;
+    items.push(flagged.length
+      ? `<b>${flagged.length}</b> city(ies) flagged: <b>${flagged.join(", ")}</b>`
+      : `All <b>${d.cities.length}</b> cities clear`);
+    [...d.cities].sort((a, b) => b.obs24_mm - a.obs24_mm).slice(0, 10).forEach((c) => {
+      items.push(`<b>${c.name}</b>: ${c.obs24_mm} mm / 24 h — ${c.category}`);
+    });
   }
-  return "";
+  return items;
 }
 
-function showHeadline(text) {
-  if (!text) return;
-  $("headline").innerHTML = `<span class="hl-tag">At a glance</span><span>${text}</span>`;
+function showHeadline(items) {
+  if (!items || !items.length) return;
+  const seq = items.map((t) => `<span class="tk-item">${t}</span>`).join("");
+  const secs = Math.max(18, items.length * 5);
+  $("headline").innerHTML =
+    `<span class="hl-tag">Live</span>
+     <div class="tick-wrap"><div class="tick-track" style="--tick-s:${secs}s">${seq}${seq}</div></div>`;
   $("headline").style.display = "";
 }
 

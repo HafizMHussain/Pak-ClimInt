@@ -542,19 +542,34 @@ function renderDayStrip(days) {
     </div>`).join("")}</div>`;
 }
 
-/* one-line headline under the hero — quoted from the coordinator JSON */
+/* scrolling headline ticker under the hero — news-ticker of short items,
+   all quoted from the coordinator JSON (per forecast day + per station) */
 function renderHeadline(d) {
   const w = d.agents?.weather || {};
   const rv = d.agents?.river || {};
+  const pop = d.agents?.population || {};
+  const wd = (x) => new Date(x.date + "T00:00").toLocaleDateString("en", { weekday: "long" });
+  const items = [];
+  items.push(`Risk <b>${(d.risk_level || "?").toUpperCase()} ${d.risk_score}/100</b> → <b>${(d.decision?.action || "n/a").replace(/_/g, " ")}</b>`);
+  const o24 = w.observed_rain_mm?.last_24h?.basin_mean;
   const f72 = w.forecast_rain_mm?.next_72h?.basin_mean;
-  const worst = rv.worst_station;
-  const bits = [
-    `Risk <b>${(d.risk_level || "?").toUpperCase()} ${d.risk_score}/100</b> → <b>${(d.decision?.action || "n/a").replace(/_/g, " ")}</b>`,
-    f72 != null ? `<b>${f72} mm</b> rain expected in 3 days` : null,
-    worst ? `rivers: <b>${worst.name}</b> ${worst.flood_category.replace(/_/g, " ")}` : null,
-  ].filter(Boolean);
+  if (o24 != null) items.push(`Last 24 h: <b>${o24} mm</b> rain observed`);
+  if (f72 != null) items.push(`Next 3 days: <b>${f72} mm</b> forecast`);
+  Object.entries(rv.stations || {}).forEach(([n, st]) => {
+    items.push(`<b>${n}</b>: ${st.flood_category.replace(/_/g, " ")}, peak ${fmt(st.peak_m3s)} m³/s`);
+  });
+  (w.forecast_daily?.days || []).forEach((x) => {
+    items.push(`<b>${wd(x)}</b>: ${dayLabel(x)}, ${Math.round(x.temp_max_c)}°/${Math.round(x.temp_min_c)}°` +
+      (x.precip_mm >= 0.5 ? `, ${x.precip_mm} mm rain (${x.precip_probability_pct}%)` : ""));
+  });
+  if (pop.total_population) {
+    items.push(`Exposure: <b>${fmt(pop.total_population)}</b> people, <b>${fmt(pop.floodplain_population)}</b> on floodplain`);
+  }
+  const seq = items.map((t) => `<span class="tk-item">${t}</span>`).join("");
+  const secs = Math.max(18, items.length * 5);
   $("headline").innerHTML =
-    `<span class="hl-tag">At a glance</span><span>${bits.join(" · ")}.</span>`;
+    `<span class="hl-tag">Live</span>
+     <div class="tick-wrap"><div class="tick-track" style="--tick-s:${secs}s">${seq}${seq}</div></div>`;
   $("headline").style.display = "";
 }
 
