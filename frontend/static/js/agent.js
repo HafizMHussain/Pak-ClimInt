@@ -446,7 +446,7 @@ function weather(d) {
       { label: "AOI max", data: W.map(([, s]) => s.basin_max),
         backgroundColor: grad(SERIES[1]), borderRadius: 6, maxBarThickness: 34, order: 2 },
     ] },
-    options: { maintainAspectRatio: false, animation: springy,
+    options: { maintainAspectRatio: false, animation: springy, animations: { colors: false },
       interaction: { mode: "index", intersect: false },
       plugins: { tooltip: { callbacks: { afterBody: (items) => {
         const s = W[items[0].dataIndex][1];
@@ -468,7 +468,7 @@ function weather(d) {
         { label: "rain mm/day", data: rain, backgroundColor: grad(SERIES[0]),
           hoverBackgroundColor: SERIES[0], borderRadius: 6, maxBarThickness: 34, order: 1 },
       ] },
-      options: { maintainAspectRatio: false, animation: springy,
+      options: { maintainAspectRatio: false, animation: springy, animations: { colors: false },
         plugins: { tooltip: { callbacks: { afterLabel: (c2) => {
           const x = days[c2.dataIndex];
           const an = (x.precip_mm - weekMean).toFixed(1);
@@ -486,7 +486,7 @@ function weather(d) {
         backgroundColor: "rgba(201,133,0,0.12)", fill: "-1", borderWidth: 2.5,
         pointRadius: 4, pointHoverRadius: 7, tension: 0.35 },
     ] },
-      options: { maintainAspectRatio: false, animation: springy,
+      options: { maintainAspectRatio: false, animation: springy, animations: { colors: false },
         interaction: { mode: "index", intersect: false },
         plugins: { tooltip: { callbacks: { afterBody: (items) => {
           const x = days[items[0].dataIndex];
@@ -499,7 +499,7 @@ function weather(d) {
         borderColor: SERIES[1], backgroundColor: grad(SERIES[1], "0a"), fill: true,
         borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 7, tension: 0.35 },
     ] },
-      options: { maintainAspectRatio: false, animation: springy,
+      options: { maintainAspectRatio: false, animation: springy, animations: { colors: false },
         plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100 } } } });
   }
   $("charts-note").textContent = `Sources: ${d.sources.observed} (observed, window ends ${d.observed_window_end_utc}) · ${d.sources.forecast} (forecast) · ${d.sources.temperature}. Min / σ are spatial statistics over the AOI pixels (Earth Engine reducers). "Anomaly" = that day minus the mean of the 7 displayed days. 7-day outlook is a Meteoblue point at the AOI centre.`;
@@ -537,8 +537,10 @@ function disaster(d) {
   const leads = Object.keys(Object.values(stations)[0]?.forecast_discharge_m3s || {});
   new Chart($("c1"), { type: "line", data: { labels: leads,
     datasets: names.map((n, i) => ({ label: n, data: leads.map((L2) => stations[n].forecast_discharge_m3s[L2]),
-      borderColor: SERIES[i % 5], backgroundColor: SERIES[i % 5], borderWidth: 2, pointRadius: 4 })) },
-    options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false } } });
+      borderColor: SERIES[i % 5], backgroundColor: SERIES[i % 5],
+      borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 7, tension: 0.3 })) },
+    options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+      animation: { duration: 1200, easing: "easeOutQuart" }, animations: { colors: false } } });
   $("charts-note").textContent = "GloFAS control forecast — known ~2x low bias vs FFD cusecs at Chenab stations; relative ranking reliable.";
   // station markers (pulse when above normal)
   fetch("/api/basins").then((r) => r.json()).then((basins) => {
@@ -594,7 +596,9 @@ function population(d) {
     labels: ["Floodplain (proxy)", "Rest of AOI"],
     datasets: [{ data: [d.floodplain_population, Math.max(0, d.total_population - d.floodplain_population)],
       backgroundColor: [SERIES[2], SERIES[1]], borderWidth: 2, borderColor: "#131c18" }] },
-    options: { maintainAspectRatio: false, cutout: "62%" } });
+    options: { maintainAspectRatio: false, cutout: "62%",
+      animation: { animateRotate: true, duration: 1600, easing: "easeOutQuart" },
+      animations: { colors: false } } });
   $("charts-note").textContent = "Floodplain = slope < 2° proxy (documented limitation).";
   $("map-note").textContent = "Raster: WorldPop population density — brighter means more people per pixel.";
 }
@@ -625,12 +629,23 @@ function urban(d) {
   })));
   $("charts").innerHTML = chartBox("c1", "24 h rain per city — observed vs forecast (mm)");
   $("charts").firstElementChild.style.gridColumn = "1 / -1";
+  const ugrad = (hex) => (c2) => {
+    const { ctx, chartArea } = c2.chart;
+    if (!chartArea) return hex;
+    const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+    g.addColorStop(0, hex); g.addColorStop(1, hex + "33");
+    return g;
+  };
   new Chart($("c1"), { type: "bar", data: {
     labels: d.cities.map((c) => c.name),
     datasets: [
-      { label: "observed 24 h", data: d.cities.map((c) => c.obs24_mm), backgroundColor: SERIES[0], borderRadius: 4 },
-      { label: "forecast 24 h", data: d.cities.map((c) => c.fcst24_mm), backgroundColor: SERIES[1], borderRadius: 4 },
-    ] }, options: { maintainAspectRatio: false, scales: { y: { title: { display: true, text: "mm" } } } } });
+      { label: "observed 24 h", data: d.cities.map((c) => c.obs24_mm), backgroundColor: ugrad(SERIES[0]), borderRadius: 5 },
+      { label: "forecast 24 h", data: d.cities.map((c) => c.fcst24_mm), backgroundColor: ugrad(SERIES[1]), borderRadius: 5 },
+    ] }, options: { maintainAspectRatio: false,
+      animation: { duration: 1200, easing: "easeOutQuart",
+        delay: (c2) => (c2.type === "data" ? c2.dataIndex * 45 : 0) },
+      animations: { colors: false },
+      scales: { y: { title: { display: true, text: "mm" } } } } });
   $("charts-note").textContent = `Thresholds (mm/24 h over a 12 km footprint): watch ${d.thresholds_mm_24h.watch} · likely ${d.thresholds_mm_24h.likely} · severe ${d.thresholds_mm_24h.severe}. ${d.caveats?.[0] || ""}`;
   d.cities.forEach((c) => {
     const popup = `<b>${c.name}</b> (${c.province})<br>Obs 24h: ${c.obs24_mm} mm · Fcst: ${c.fcst24_mm} mm<br>Indicator: <b>${c.category}</b>`;

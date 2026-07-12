@@ -300,7 +300,7 @@ function renderCharts(d, w, rv, pop) {
         { label: "AOI max", data: W.map(([, s]) => s.basin_max), backgroundColor: grad(SERIES[1]), borderRadius: 6, maxBarThickness: 32, order: 2 },
       ],
     },
-    options: { maintainAspectRatio: false, animation: springy,
+    options: { maintainAspectRatio: false, animation: springy, animations: { colors: false },
       interaction: { mode: "index", intersect: false },
       plugins: { tooltip: { callbacks: { afterBody: (items) => {
         const s = W[items[0].dataIndex][1];
@@ -316,6 +316,8 @@ function renderCharts(d, w, rv, pop) {
     data: { labels: ["score", ""], datasets: [{ data: [d.risk_score, 100 - d.risk_score], backgroundColor: [lc, "rgba(255,255,255,0.07)"], borderWidth: 0 }] },
     options: {
       maintainAspectRatio: false, rotation: -90, circumference: 180, cutout: "72%",
+      animation: { animateRotate: true, duration: 1600, easing: "easeOutQuart" },
+      animations: { colors: false },
       plugins: { legend: { display: false }, tooltip: { enabled: false } },
     },
     plugins: [{
@@ -350,7 +352,7 @@ function renderCharts(d, w, rv, pop) {
           hoverBackgroundColor: SERIES[0], borderRadius: 6, maxBarThickness: 34, order: 1 },
       ] },
       options: {
-        maintainAspectRatio: false, animation: springy,
+        maintainAspectRatio: false, animation: springy, animations: { colors: false },
         plugins: { tooltip: { callbacks: { afterLabel: (c) => {
           const x = days[c.dataIndex];
           const an = (x.precip_mm - weekMean).toFixed(1);
@@ -369,7 +371,7 @@ function renderCharts(d, w, rv, pop) {
           { label: "min °C", data: days.map((x) => x.temp_min_c), borderColor: SERIES[0], backgroundColor: "rgba(201,133,0,0.12)", fill: "-1", borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 7, tension: 0.35 },
         ],
       },
-      options: { maintainAspectRatio: false, animation: springy,
+      options: { maintainAspectRatio: false, animation: springy, animations: { colors: false },
         interaction: { mode: "index", intersect: false },
         plugins: { tooltip: { callbacks: { afterBody: (items) => {
           const x = days[items[0].dataIndex];
@@ -387,9 +389,18 @@ function renderCharts(d, w, rv, pop) {
     type: "bar",
     data: {
       labels: ["Total population", "Floodplain (proxy)"],
-      datasets: [{ data: [pop.total_population, pop.floodplain_population], backgroundColor: SERIES[1], borderRadius: 4, maxBarThickness: 60 }],
+      datasets: [{ data: [pop.total_population, pop.floodplain_population],
+        backgroundColor: (c2) => {
+          const { ctx, chartArea } = c2.chart;
+          if (!chartArea) return SERIES[1];
+          const g = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
+          g.addColorStop(0, SERIES[1] + "55"); g.addColorStop(1, SERIES[1]);
+          return g;
+        }, borderRadius: 6, maxBarThickness: 60 }],
     },
-    options: { maintainAspectRatio: false, indexAxis: "y", plugins: { legend: { display: false } } },
+    options: { maintainAspectRatio: false, indexAxis: "y",
+      animation: springy, animations: { colors: false },
+      plugins: { legend: { display: false } } },
   });
   $("exp-cards").innerHTML = [
     { v: fmt(pop.total_population), l: "People in AOI", s: "WorldPop 2020 constrained 100 m" },
@@ -413,11 +424,12 @@ async function renderHydro(spec, rv) {
         datasets: names.map((n, i) => ({
           label: n, data: leadLabels.map((L) => stations[n].forecast_discharge_m3s[L]),
           borderColor: SERIES[i % SERIES.length], backgroundColor: SERIES[i % SERIES.length],
-          borderWidth: 2, pointRadius: 4,
+          borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 7, tension: 0.3,
         })),
       },
       options: {
         maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+        animation: springy, animations: { colors: false },
         scales: { y: { title: { display: true, text: "m³/s" } } },
       },
     });
@@ -487,10 +499,18 @@ function renderAI(d, w) {
     type: "bar",
     data: {
       labels: keys.map((k) => `${k.replace(/_/g, " ")} (w=${weights[k] ?? "?"})`),
-      datasets: [{ data: keys.map((k) => +(comps[k] * (weights[k] || 0)).toFixed(1)), backgroundColor: SERIES[0], borderRadius: 4, maxBarThickness: 40 }],
+      datasets: [{ data: keys.map((k) => +(comps[k] * (weights[k] || 0)).toFixed(1)),
+        backgroundColor: (c2) => {
+          const { ctx, chartArea } = c2.chart;
+          if (!chartArea) return SERIES[0];
+          const g = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
+          g.addColorStop(0, SERIES[0] + "55"); g.addColorStop(1, SERIES[0]);
+          return g;
+        }, borderRadius: 6, maxBarThickness: 40 }],
     },
     options: {
       maintainAspectRatio: false, indexAxis: "y",
+      animation: springy, animations: { colors: false },
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { afterLabel: (c) => `raw component score: ${comps[keys[c.dataIndex]]}/100` } },
