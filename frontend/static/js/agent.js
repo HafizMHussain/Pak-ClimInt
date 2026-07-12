@@ -359,9 +359,14 @@ async function boot() {
 
   $("dash").style.display = "";
   await buildMap(meta.layers);
-  ({ weather, disaster, terrain, population, urban })[PIPE](data);
-  showHeadline(buildHeadline(PIPE, data));
-  wireSummary(buildSummary(PIPE, data));
+  try {
+    ({ weather, disaster, terrain, population, urban })[PIPE](data);
+    showHeadline(buildHeadline(PIPE, data));
+    wireSummary(buildSummary(PIPE, data));
+  } catch (err) { // surface render errors instead of a silent blank page
+    console.error(err);
+    $("charts-note").textContent = `Render error: ${err}`;
+  }
   reveal();
   const storm = (PIPE === "weather" && (data.forecast_rain_mm?.next_72h?.basin_mean || 0) >= 15)
     || (PIPE === "urban" && (data.flagged || []).length > 0)

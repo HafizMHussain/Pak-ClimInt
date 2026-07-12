@@ -38,6 +38,18 @@ app = Flask(
 )
 app.register_blueprint(api, url_prefix="/api")
 
+# Cache-busting stamp for static JS/CSS: changes on every server start,
+# so browsers stop serving stale bundles after a deploy (templates append
+# ?v={{ asset_v }} to their static includes).
+import time as _time
+
+_ASSET_V = str(int(_time.time()))
+
+
+@app.context_processor
+def _inject_asset_version():
+    return {"asset_v": _ASSET_V}
+
 # --- Authentication (single-operator session login) -------------------
 # Credentials live in .env (PORTAL_EMAIL / PORTAL_PASSWORD); the session
 # cookie is signed with FLASK_SECRET_KEY. Every page and API route is
