@@ -469,7 +469,9 @@ function weather(d) {
           hoverBackgroundColor: SERIES[0], borderRadius: 6, maxBarThickness: 34, order: 1 },
       ] },
       options: { maintainAspectRatio: false, animation: springy, animations: { colors: false },
-        plugins: { tooltip: { callbacks: { afterLabel: (c2) => {
+        plugins: { tooltip: {
+          filter: (i) => !String(i.dataset.label || "").startsWith("week mean"),
+          callbacks: { afterLabel: (c2) => {
           const x = days[c2.dataIndex];
           const an = (x.precip_mm - weekMean).toFixed(1);
           return [`anomaly ${an > 0 ? "+" : ""}${an} mm vs week mean`,

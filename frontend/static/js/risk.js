@@ -318,7 +318,8 @@ function renderCharts(d, w, rv, pop) {
       maintainAspectRatio: false, rotation: -90, circumference: 180, cutout: "72%",
       animation: { animateRotate: true, duration: 1600, easing: "easeOutQuart" },
       animations: { colors: false },
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      plugins: { legend: { display: false },
+        tooltip: { enabled: false, external: null } }, // gauge: no tooltip
     },
     plugins: [{
       id: "center",
@@ -353,7 +354,9 @@ function renderCharts(d, w, rv, pop) {
       ] },
       options: {
         maintainAspectRatio: false, animation: springy, animations: { colors: false },
-        plugins: { tooltip: { callbacks: { afterLabel: (c) => {
+        plugins: { tooltip: {
+          filter: (i) => !String(i.dataset.label || "").startsWith("week mean"),
+          callbacks: { afterLabel: (c) => {
           const x = days[c.dataIndex];
           const an = (x.precip_mm - weekMean).toFixed(1);
           return [`anomaly ${an > 0 ? "+" : ""}${an} mm vs week mean`,
