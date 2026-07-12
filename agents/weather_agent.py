@@ -271,7 +271,11 @@ class WeatherAgent:
             return {"agent": "weather", "status": "error", "error": str(e)}
 
         # --- One combined server round-trip --------------------------
-        reducer = ee.Reducer.mean().combine(ee.Reducer.max(), sharedInputs=True)
+        # mean/max/min/stdDev share inputs — one pass, same quota cost.
+        reducer = (ee.Reducer.mean()
+                   .combine(ee.Reducer.max(), sharedInputs=True)
+                   .combine(ee.Reducer.min(), sharedInputs=True)
+                   .combine(ee.Reducer.stdDev(), sharedInputs=True))
 
         def stats(img: ee.Image, scale: int) -> ee.Dictionary:
             return img.reduceRegion(
@@ -309,13 +313,19 @@ class WeatherAgent:
             "observed_latency_hours": latency_h,
             "observed_rain_mm": {
                 "last_24h": {"basin_mean": rnd(combined["obs24"], "mm_mean"),
-                             "basin_max": rnd(combined["obs24"], "mm_max")},
+                             "basin_max": rnd(combined["obs24"], "mm_max"),
+                             "basin_min": rnd(combined["obs24"], "mm_min"),
+                             "basin_std": rnd(combined["obs24"], "mm_stdDev")},
                 "last_72h": {"basin_mean": rnd(combined["obs72"], "mm_mean"),
-                             "basin_max": rnd(combined["obs72"], "mm_max")},
+                             "basin_max": rnd(combined["obs72"], "mm_max"),
+                             "basin_min": rnd(combined["obs72"], "mm_min"),
+                             "basin_std": rnd(combined["obs72"], "mm_stdDev")},
             },
             "forecast_rain_mm": {
                 "next_72h": {"basin_mean": rnd(combined["fcst72"], "mm_mean"),
-                             "basin_max": rnd(combined["fcst72"], "mm_max")},
+                             "basin_max": rnd(combined["fcst72"], "mm_max"),
+                             "basin_min": rnd(combined["fcst72"], "mm_min"),
+                             "basin_std": rnd(combined["fcst72"], "mm_stdDev")},
             },
             "temperature_c": {
                 # "point" (when present) is the headline reading —

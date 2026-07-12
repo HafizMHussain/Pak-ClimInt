@@ -399,41 +399,105 @@ function weather(d) {
   const wxScene = (mm, stormMm) => mm >= 0.5
     ? sceneRain(Math.round(mm), mm >= (stormMm || 25))
     : ((c.precip_probability_pct || 0) >= 40 ? sceneCloud() : sceneSun());
+  const spread = (s) => `max ${s.basin_max} mm` + (s.basin_std != null ? ` · σ ${s.basin_std}` : "");
   $("cards").innerHTML = cardsHtml([
-    { v: `${o24.basin_mean ?? "n/a"} mm`, l: "Observed 24 h", s: `max ${o24.basin_max} mm`, scene: wxScene(o24.basin_mean) },
-    { v: `${o72.basin_mean ?? "n/a"} mm`, l: "Observed 72 h", s: `max ${o72.basin_max} mm`, scene: wxScene(o72.basin_mean, 50) },
-    { v: `${f72.basin_mean ?? "n/a"} mm`, l: "Forecast 72 h", s: `max ${f72.basin_max} mm (GFS)`, scene: wxScene(f72.basin_mean, 50) },
+    { v: `${o24.basin_mean ?? "n/a"} mm`, l: "Observed 24 h", s: spread(o24), scene: wxScene(o24.basin_mean) },
+    { v: `${o72.basin_mean ?? "n/a"} mm`, l: "Observed 72 h", s: spread(o72), scene: wxScene(o72.basin_mean, 50) },
+    { v: `${f72.basin_mean ?? "n/a"} mm`, l: "Forecast 72 h", s: `${spread(f72)} (GFS)`, scene: wxScene(f72.basin_mean, 50) },
     { v: `${d.observed_latency_hours} h`, l: "Satellite latency", s: "IMERG publication delay", scene: sceneCloud() },
   ]);
   const days7 = d.forecast_daily?.days || [];
   if (days7.length) $("map-panel").insertAdjacentHTML("beforebegin", dayStripHtml(days7));
   $("charts").innerHTML =
-    chartBox("c1", "Rain — observed vs forecast (mm)") +
-    chartBox("c2", "7-day outlook — daily rain (mm)") +
-    chartBox("c3", "7-day outlook — temperature (°C)") +
+    chartBox("c1", "Rain — observed vs forecast (mm, with spatial min / ±1σ spread)") +
+    chartBox("c2", "7-day outlook — daily rain (mm) vs week mean") +
+    chartBox("c3", "7-day outlook — temperature (°C, day range shaded)") +
     chartBox("c4", "7-day outlook — humidity (%)");
+
+  // vertical gradient fill (solid at the top, fading to the baseline)
+  const grad = (hex, lo = "33") => (c2) => {
+    const { ctx, chartArea } = c2.chart;
+    if (!chartArea) return hex;
+    const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+    g.addColorStop(0, hex);
+    g.addColorStop(1, hex + lo);
+    return g;
+  };
+  const springy = { duration: 1200, easing: "easeOutQuart",
+    delay: (c2) => (c2.type === "data" ? c2.dataIndex * 110 : 0) };
+
+  // c1: mean + max bars, min in the tooltip, ±1σ spread as a floating band
+  const W = [["Obs 24 h", o24], ["Obs 72 h", o72], ["Fcst 72 h", f72]];
+  const band = W.map(([, s]) => (s.basin_mean != null && s.basin_std != null)
+    ? [Math.max(0, s.basin_mean - s.basin_std), s.basin_mean + s.basin_std] : null);
   new Chart($("c1"), { type: "bar", data: {
-    labels: ["Obs 24 h", "Obs 72 h", "Fcst 72 h"],
+    labels: W.map(([l]) => l),
     datasets: [
-      { label: "AOI mean", data: [o24.basin_mean, o72.basin_mean, f72.basin_mean], backgroundColor: SERIES[0], borderRadius: 4, maxBarThickness: 44 },
-      { label: "AOI max", data: [o24.basin_max, o72.basin_max, f72.basin_max], backgroundColor: SERIES[1], borderRadius: 4, maxBarThickness: 44 },
-    ] }, options: { maintainAspectRatio: false } });
+      { label: "±1σ spread", data: band, backgroundColor: "rgba(144,133,233,0.22)",
+        borderColor: "rgba(144,133,233,0.55)", borderWidth: 1, borderSkipped: false,
+        borderRadius: 6, maxBarThickness: 56, grouped: false, order: 3 },
+      { label: "AOI mean", data: W.map(([, s]) => s.basin_mean),
+        backgroundColor: grad(SERIES[0]), borderRadius: 6, maxBarThickness: 34, order: 1 },
+      { label: "AOI max", data: W.map(([, s]) => s.basin_max),
+        backgroundColor: grad(SERIES[1]), borderRadius: 6, maxBarThickness: 34, order: 2 },
+    ] },
+    options: { maintainAspectRatio: false, animation: springy,
+      interaction: { mode: "index", intersect: false },
+      plugins: { tooltip: { callbacks: { afterBody: (items) => {
+        const s = W[items[0].dataIndex][1];
+        return [`min ${s.basin_min ?? "n/a"} mm · σ ${s.basin_std ?? "n/a"} mm`];
+      } } } },
+      scales: { y: { title: { display: true, text: "mm" } } } } });
+
   const days = d.forecast_daily?.days || [];
   const wd = (x) => new Date(x.date + "T00:00").toLocaleDateString("en", { weekday: "short" });
   if (days.length) {
+    // c2: daily rain bars + dashed week-mean line; anomaly in the tooltip
+    const rain = days.map((x) => x.precip_mm);
+    const weekMean = rain.reduce((a, b) => a + b, 0) / rain.length;
     new Chart($("c2"), { type: "bar", data: { labels: days.map(wd),
-      datasets: [{ data: days.map((x) => x.precip_mm), backgroundColor: SERIES[0], borderRadius: 4, maxBarThickness: 34 }] },
-      options: { maintainAspectRatio: false, plugins: { legend: { display: false },
-        tooltip: { callbacks: { afterLabel: (c2) => `probability ${days[c2.dataIndex].precip_probability_pct}%` } } } } });
+      datasets: [
+        { type: "line", label: `week mean (${weekMean.toFixed(1)} mm)`,
+          data: rain.map(() => weekMean), borderColor: SERIES[3],
+          borderDash: [7, 5], borderWidth: 2, pointRadius: 0, order: 0 },
+        { label: "rain mm/day", data: rain, backgroundColor: grad(SERIES[0]),
+          hoverBackgroundColor: SERIES[0], borderRadius: 6, maxBarThickness: 34, order: 1 },
+      ] },
+      options: { maintainAspectRatio: false, animation: springy,
+        plugins: { tooltip: { callbacks: { afterLabel: (c2) => {
+          const x = days[c2.dataIndex];
+          const an = (x.precip_mm - weekMean).toFixed(1);
+          return [`anomaly ${an > 0 ? "+" : ""}${an} mm vs week mean`,
+                  `probability ${x.precip_probability_pct}% · wind max ${x.wind_max_ms} m/s`];
+        } } } },
+        scales: { y: { title: { display: true, text: "mm" } } } } });
+
+    // c3: temperature max/min with the day range shaded between them
     new Chart($("c3"), { type: "line", data: { labels: days.map(wd), datasets: [
-      { label: "max", data: days.map((x) => x.temp_max_c), borderColor: SERIES[2], backgroundColor: SERIES[2], borderWidth: 2, pointRadius: 4 },
-      { label: "min", data: days.map((x) => x.temp_min_c), borderColor: SERIES[0], backgroundColor: SERIES[0], borderWidth: 2, pointRadius: 4 },
-    ] }, options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false } } });
+      { label: "max", data: days.map((x) => x.temp_max_c), borderColor: SERIES[2],
+        backgroundColor: SERIES[2], borderWidth: 2.5, pointRadius: 4,
+        pointHoverRadius: 7, tension: 0.35 },
+      { label: "min", data: days.map((x) => x.temp_min_c), borderColor: SERIES[0],
+        backgroundColor: "rgba(201,133,0,0.12)", fill: "-1", borderWidth: 2.5,
+        pointRadius: 4, pointHoverRadius: 7, tension: 0.35 },
+    ] },
+      options: { maintainAspectRatio: false, animation: springy,
+        interaction: { mode: "index", intersect: false },
+        plugins: { tooltip: { callbacks: { afterBody: (items) => {
+          const x = days[items[0].dataIndex];
+          return [`day range ${(x.temp_max_c - x.temp_min_c).toFixed(1)}°`];
+        } } } } } });
+
+    // c4: humidity area with a soft gradient
     new Chart($("c4"), { type: "line", data: { labels: days.map(wd), datasets: [
-      { label: "mean humidity", data: days.map((x) => x.humidity_mean_pct), borderColor: SERIES[1], backgroundColor: "rgba(25,158,112,0.25)", fill: true, borderWidth: 2, pointRadius: 4 },
-    ] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100 } } } });
+      { label: "mean humidity", data: days.map((x) => x.humidity_mean_pct),
+        borderColor: SERIES[1], backgroundColor: grad(SERIES[1], "0a"), fill: true,
+        borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 7, tension: 0.35 },
+    ] },
+      options: { maintainAspectRatio: false, animation: springy,
+        plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100 } } } });
   }
-  $("charts-note").textContent = `Sources: ${d.sources.observed} (observed, window ends ${d.observed_window_end_utc}) · ${d.sources.forecast} (forecast) · ${d.sources.temperature}. 7-day outlook is a Meteoblue point at the AOI centre.`;
+  $("charts-note").textContent = `Sources: ${d.sources.observed} (observed, window ends ${d.observed_window_end_utc}) · ${d.sources.forecast} (forecast) · ${d.sources.temperature}. Min / σ are spatial statistics over the AOI pixels (Earth Engine reducers). "Anomaly" = that day minus the mean of the 7 displayed days. 7-day outlook is a Meteoblue point at the AOI centre.`;
   $("map-note").textContent = "Rain rasters are the weather agent's own images — the map and the numbers can never disagree.";
 }
 
