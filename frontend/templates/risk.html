@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Risk Assessment — Pak-ClimInt</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      --bg: #0c1210; --surface-1: #131c18; --surface-2: #182420;
+      --border: rgba(255, 255, 255, 0.09); --text: #e8f0ec; --dim: #8fa39a;
+      --accent: #35c48d; --blue: #4aa3f0; --danger: #e66767;
+      /* validated categorical series (dark surface) */
+      --series-1: #3987e5; --series-2: #199e70; --series-3: #c98500;
+      --series-4: #9085e9; --series-5: #e66767;
+      --lvl-low: #2e7d52; --lvl-moderate: #b9950a;
+      --lvl-high: #c46a0e; --lvl-severe: #b03434;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(1200px 700px at 85% -10%, #14251e 0%, var(--bg) 55%);
+      color: var(--text); min-height: 100vh; font-size: 15px;
+    }
+    a { color: var(--blue); }
+
+    /* sticky header */
+    header {
+      position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap;
+      align-items: center; gap: 0.9rem; padding: 0.7rem 1.4rem;
+      background: rgba(12, 18, 16, 0.88); backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    header img { width: 34px; height: 34px; }
+    .h-brand { font-weight: 700; font-size: 1.02rem; }
+    .h-brand small { display: block; font-weight: 400; color: var(--dim); font-size: 0.68rem; }
+    #h-aoi { color: var(--dim); font-size: 0.86rem; }
+    #h-chip {
+      margin-left: auto; padding: 0.34rem 0.95rem; border-radius: 999px;
+      font-weight: 700; font-size: 0.85rem; background: #333; letter-spacing: 0.02em;
+    }
+    .h-btn {
+      padding: 0.42rem 0.9rem; border: 1px solid var(--border); border-radius: 9px;
+      background: rgba(255, 255, 255, 0.05); color: var(--text); cursor: pointer;
+      font-size: 0.82rem; text-decoration: none; transition: background 0.15s;
+    }
+    .h-btn:hover { background: rgba(255, 255, 255, 0.11); }
+
+    main { max-width: 1240px; margin: 0 auto; padding: 1.6rem 1.4rem 4rem; }
+
+    /* cards */
+    .cards {
+      display: grid; gap: 0.9rem;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      margin-bottom: 1.4rem;
+    }
+    .kcard {
+      background: var(--surface-1); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1rem 1.1rem; min-height: 108px;
+      display: flex; flex-direction: column; justify-content: center;
+      transition: transform 0.15s ease, border-color 0.15s; cursor: default;
+      animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    }
+    .kcard.clickable { cursor: pointer; }
+    .kcard.clickable:hover { transform: translateY(-3px); border-color: var(--accent); }
+    .kcard .kv { font-size: 1.55rem; font-weight: 700; line-height: 1.15; }
+    .kcard .kv small { font-size: 0.85rem; font-weight: 400; color: var(--dim); }
+    .kcard .kl { color: var(--dim); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 5px; }
+    .kcard .ks { color: var(--dim); font-size: 0.78rem; margin-top: 3px; }
+    @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
+    .cards .kcard:nth-child(2) { animation-delay: 0.05s; }
+    .cards .kcard:nth-child(3) { animation-delay: 0.1s; }
+    .cards .kcard:nth-child(4) { animation-delay: 0.15s; }
+    .cards .kcard:nth-child(5) { animation-delay: 0.2s; }
+    .cards .kcard:nth-child(6) { animation-delay: 0.25s; }
+    .cards .kcard:nth-child(7) { animation-delay: 0.3s; }
+    .cards .kcard:nth-child(8) { animation-delay: 0.35s; }
+
+    /* sections */
+    section.block {
+      background: var(--surface-1); border: 1px solid var(--border);
+      border-radius: 16px; margin-bottom: 1.1rem; overflow: hidden;
+    }
+    .block > .sec-head {
+      display: flex; align-items: center; gap: 0.7rem; width: 100%;
+      padding: 0.95rem 1.25rem; background: none; border: none; color: var(--text);
+      font-size: 1rem; font-weight: 700; cursor: pointer; text-align: left;
+    }
+    .sec-head .chev { margin-left: auto; color: var(--dim); transition: transform 0.25s; }
+    section.block.collapsed .chev { transform: rotate(-90deg); }
+    section.block.collapsed .sec-body { display: none; }
+    .sec-body { padding: 0.4rem 1.25rem 1.35rem; }
+    .sec-note { color: var(--dim); font-size: 0.78rem; margin-top: 0.7rem; }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+    @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+
+    .chart-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem; }
+    .chart-box h4 { font-size: 0.82rem; color: var(--dim); font-weight: 600; margin-bottom: 0.6rem; }
+    .chart-wrap { position: relative; height: 240px; }
+
+    /* exec summary */
+    #exec-warning {
+      background: var(--surface-2); border-left: 3px solid var(--accent);
+      border-radius: 10px; padding: 0.9rem 1.05rem; line-height: 1.55; font-size: 0.93rem;
+    }
+    ul.findings { margin: 0.9rem 0 0 1.2rem; line-height: 1.7; font-size: 0.92rem; }
+    .alert-chip {
+      display: inline-block; margin: 0.5rem 0.4rem 0 0; padding: 0.3rem 0.8rem;
+      border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+    }
+
+    /* tables */
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--dim); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    tr.st-row { cursor: pointer; transition: background 0.12s; }
+    tr.st-row:hover { background: rgba(255, 255, 255, 0.05); }
+    .cat-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 7px; }
+
+    #mini-map { height: 340px; border-radius: 12px; border: 1px solid var(--border); }
+
+    /* actions */
+    ol.actions { margin: 0.3rem 0 0 1.25rem; line-height: 1.9; font-size: 0.93rem; }
+
+    /* ---------- summary modal ---------- */
+    #sum-overlay {
+      position: fixed; inset: 0; z-index: 80; display: none;
+      background: rgba(5, 9, 8, 0.72); backdrop-filter: blur(6px);
+      align-items: center; justify-content: center; padding: 1.2rem;
+    }
+    #sum-overlay.open { display: flex; }
+    #sum-box {
+      width: min(680px, 96vw); max-height: 84vh; overflow-y: auto;
+      background: var(--surface-1); border: 1px solid var(--accent);
+      border-radius: 18px; padding: 1.5rem 1.7rem;
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.65);
+      animation: rise 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #sum-box h3 { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.9rem; }
+    #sum-box h3 .x { margin-left: auto; background: none; border: none; color: var(--dim); font-size: 1.3rem; cursor: pointer; }
+    #sum-box h3 .x:hover { color: var(--text); }
+    #sum-body p { line-height: 1.65; font-size: 0.93rem; margin-bottom: 0.85rem; }
+    #sum-body b { color: var(--accent); }
+    #sum-body .sum-note { color: var(--dim); font-size: 0.76rem; border-top: 1px solid var(--border); padding-top: 0.7rem; display: block; }
+
+    /* ---------- Google-Weather 7-day strip ---------- */
+    .day-strip { display: flex; gap: 0.7rem; overflow-x: auto; padding-bottom: 6px; margin-bottom: 1rem; }
+    .day-card {
+      flex: 0 0 110px; background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 14px; padding: 0.8rem 0.5rem; text-align: center;
+      position: relative; overflow: hidden; transition: transform 0.15s, border-color 0.15s, box-shadow 0.2s;
+    }
+    .day-card:hover { transform: translateY(-4px) scale(1.03); border-color: var(--accent); box-shadow: 0 10px 26px rgba(53,196,141,0.15); }
+    .dc-wd { color: var(--dim); font-size: 0.72rem; font-weight: 600; text-transform: uppercase; }
+    .dc-icon { position: relative; height: 54px; margin: 0.35rem 0; }
+    .dc-t { font-weight: 700; font-size: 1.02rem; }
+    .dc-tmin { color: var(--dim); font-size: 0.8rem; }
+    .dc-rain { color: #6fc7ff; font-size: 0.72rem; margin-top: 2px; min-height: 1em; }
+    .mi-sun {
+      position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+      width: 30px; height: 30px; border-radius: 50%;
+      background: radial-gradient(circle, #ffd76e 55%, #f0a53f);
+      box-shadow: 0 0 16px rgba(240, 197, 63, 0.5); animation: mi-pulse 4s ease-in-out infinite;
+    }
+    @keyframes mi-pulse { 50% { transform: translate(-50%, -50%) scale(1.15); } }
+    .mi-cloud {
+      position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%);
+      width: 40px; height: 15px; border-radius: 999px; background: #9db3ab;
+      animation: mc-bob 4s ease-in-out infinite;
+    }
+    .mi-cloud::before { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: inherit; top: -9px; left: 7px; }
+    .mi-cloud::after { content: ""; position: absolute; width: 13px; height: 13px; border-radius: 50%; background: inherit; top: -6px; left: 22px; }
+    @keyframes mc-bob { 50% { transform: translate(-50%, -60%); } }
+    .mi-drop { position: absolute; width: 2.5px; height: 8px; border-radius: 3px; background: linear-gradient(180deg, transparent, #6fc7ff); top: 62%; animation: mi-fall 0.95s linear infinite; }
+    @keyframes mi-fall { to { transform: translateY(46px); opacity: 0.05; } }
+    .mi-bolt { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); font-size: 0.95rem; animation: mi-zap 3s infinite; }
+    @keyframes mi-zap { 0%, 86%, 100% { opacity: 0; } 89%, 95% { opacity: 1; } 92% { opacity: 0.15; } }
+
+    /* skeletons */
+    .skeleton { border-radius: 14px; background: linear-gradient(100deg, var(--surface-1) 40%, #1d2a24 50%, var(--surface-1) 60%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+    #loading .skeleton { margin-bottom: 1rem; }
+
+    #empty { text-align: center; padding: 5rem 1rem; color: var(--dim); }
+    #empty a { display: inline-block; margin-top: 1rem; }
+
+    footer { text-align: center; color: var(--dim); font-size: 0.75rem; padding: 1.4rem; }
+
+    /* ---------- live weather-station layer ---------- */
+    #fx-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+    header, main { position: relative; z-index: 1; }
+
+    .live-dot {
+      display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+      background: var(--accent); margin-right: 6px; animation: pulse-dot 1.6s infinite;
+    }
+    @keyframes pulse-dot {
+      0% { box-shadow: 0 0 0 0 rgba(53, 196, 141, 0.55); }
+      70% { box-shadow: 0 0 0 9px rgba(53, 196, 141, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(53, 196, 141, 0); }
+    }
+
+    /* hero conditions strip */
+    #hero {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 1.6rem;
+      background: linear-gradient(120deg, var(--surface-1), #14251e 70%);
+      border: 1px solid var(--border); border-radius: 16px;
+      padding: 1.2rem 1.6rem; margin-bottom: 1.2rem; overflow: hidden;
+      position: relative;
+    }
+    #hero::after { /* drifting sheen */
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(100deg, transparent 30%, rgba(53,196,141,0.05) 50%, transparent 70%);
+      background-size: 240% 100%; animation: sheen 7s linear infinite; pointer-events: none;
+    }
+    @keyframes sheen { to { background-position: -240% 0; } }
+    .wx-icon { position: relative; width: 84px; height: 72px; flex: 0 0 auto; }
+    .wx-sun {
+      position: absolute; width: 40px; height: 40px; border-radius: 50%;
+      background: radial-gradient(circle, #ffd76e 55%, #f0a53f); top: 4px; left: 22px;
+      animation: sun-spin 14s linear infinite; box-shadow: 0 0 26px rgba(240, 197, 63, 0.5);
+    }
+    @keyframes sun-spin { to { transform: rotate(360deg); } }
+    .wx-cloud {
+      position: absolute; width: 58px; height: 22px; border-radius: 999px;
+      background: #9db3ab; bottom: 20px; left: 10px; animation: cloud-bob 4.5s ease-in-out infinite;
+    }
+    .wx-cloud::before {
+      content: ""; position: absolute; width: 26px; height: 26px; border-radius: 50%;
+      background: inherit; top: -13px; left: 10px;
+    }
+    .wx-cloud::after {
+      content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%;
+      background: inherit; top: -9px; left: 32px;
+    }
+    @keyframes cloud-bob { 50% { transform: translateY(-4px); } }
+    .wx-drop {
+      position: absolute; width: 3px; height: 10px; border-radius: 3px;
+      background: var(--blue); bottom: 4px; opacity: 0;
+      animation: drop-fall 1.1s linear infinite;
+    }
+    @keyframes drop-fall {
+      0% { transform: translateY(-8px); opacity: 0; }
+      25% { opacity: 0.9; }
+      100% { transform: translateY(12px); opacity: 0; }
+    }
+    #hero-temp { font-size: 3.1rem; font-weight: 700; line-height: 1; }
+    #hero-temp small { font-size: 1.1rem; color: var(--dim); font-weight: 400; }
+    #hero-desc { color: var(--dim); font-size: 0.85rem; margin-top: 4px; }
+    .tickers { display: flex; gap: 1.6rem; flex-wrap: wrap; margin-left: auto; }
+    .ticker { text-align: center; min-width: 74px; }
+    .ticker .tv { font-size: 1.25rem; font-weight: 700; }
+    .ticker .tl { color: var(--dim); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+
+    /* scroll reveal */
+    section.block { opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+    section.block.revealed { opacity: 1; transform: none; }
+
+    /* ---------- cinematic layer ---------- */
+    /* aurora blobs drifting behind everything */
+    body::before, body::after {
+      content: ""; position: fixed; width: 55vw; height: 55vw; border-radius: 50%;
+      filter: blur(90px); opacity: 0.14; z-index: 0; pointer-events: none;
+    }
+    body::before {
+      background: radial-gradient(circle, #35c48d, transparent 65%);
+      top: -18vw; left: -12vw; animation: aur1 18s ease-in-out infinite alternate;
+    }
+    body::after {
+      background: radial-gradient(circle, #4aa3f0, transparent 65%);
+      bottom: -20vw; right: -14vw; animation: aur2 22s ease-in-out infinite alternate;
+    }
+    @keyframes aur1 { to { transform: translate(9vw, 6vh) scale(1.15); } }
+    @keyframes aur2 { to { transform: translate(-8vw, -6vh) scale(1.1); } }
+
+    /* rotating gradient border on the hero */
+    @property --ga { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+    #hero {
+      border: 1px solid transparent;
+      background:
+        linear-gradient(120deg, var(--surface-1), #14251e 70%) padding-box,
+        conic-gradient(from var(--ga), #35c48d, #4aa3f0, #9085e9, #35c48d) border-box;
+      animation: spin-border 7s linear infinite;
+    }
+    @keyframes spin-border { to { --ga: 360deg; } }
+
+    /* shimmering headline number */
+    #hero-temp {
+      background: linear-gradient(100deg, #e8f0ec 38%, #7df2c5 50%, #e8f0ec 62%);
+      background-size: 220% 100%; -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; animation: text-shimmer 4.5s linear infinite;
+    }
+    @keyframes text-shimmer { to { background-position: -220% 0; } }
+
+    /* card hover glow (3D tilt applied by JS) */
+    .kcard { will-change: transform; }
+    .kcard:hover { box-shadow: 0 14px 34px rgba(53, 196, 141, 0.16); }
+
+    /* lightning flash overlay (only during storm conditions) */
+    #flash { position: fixed; inset: 0; background: #eaf6ff; opacity: 0; pointer-events: none; z-index: 6; }
+    #flash.zap { animation: zap 0.65s ease-out; }
+    @keyframes zap {
+      0% { opacity: 0; } 7% { opacity: 0.32; } 14% { opacity: 0.04; }
+      22% { opacity: 0.22; } 100% { opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      section.block { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="{{ url_for('static', filename='favicon.png') }}" alt="NDMA">
+    <div class="h-brand">Pak-ClimInt <small>Risk Assessment Dashboard</small></div>
+    <div id="h-aoi"><span class="live-dot"></span>—</div>
+    <div id="h-chip">…</div>
+    <button class="h-btn" id="btn-summary" style="display:none">🧾 Summary</button>
+    <a class="h-btn" href="/">🗺️ Back to map</a>
+    <a class="h-btn" href="/logout" title="Sign out">⏻</a>
+  </header>
+
+  <main>
+    <div id="loading" style="display:none">
+      <div class="skeleton" style="height:120px"></div>
+      <div class="skeleton" style="height:260px"></div>
+      <div class="skeleton" style="height:260px"></div>
+      <div style="color:var(--dim); text-align:center; padding:1rem" id="loading-note">
+        Running the multi-agent assessment… first run on a new area can take minutes.
+      </div>
+    </div>
+
+    <div id="empty" style="display:none">
+      <h2>No assessment yet</h2>
+      <p>Select an area of interest on the map and press <b>Full risk assessment</b>.</p>
+      <a class="h-btn" href="/">🗺️ Go to the map</a>
+    </div>
+
+    <div id="dash" style="display:none">
+      <div id="hero">
+        <div class="wx-icon" id="wx-icon"></div>
+        <div>
+          <div id="hero-temp">— <small>°C</small></div>
+          <div id="hero-desc"></div>
+        </div>
+        <div class="tickers" id="tickers"></div>
+      </div>
+
+      <div class="cards" id="cards"></div>
+
+      <section class="block" id="sec-exec">
+        <button class="sec-head">📋 Executive Summary <span class="chev">▾</span></button>
+        <div class="sec-body">
+          <div id="exec-warning"></div>
+          <ul class="findings" id="exec-findings"></ul>
+          <div id="exec-alerts"></div>
+        </div>
+      </section>
+
+      <section class="block" id="sec-met">
+        <button class="sec-head">🌧️ Meteorological Analysis <span class="chev">▾</span></button>
+        <div class="sec-body">
+          <div id="day-strip-wrap"></div>
+          <div class="grid2">
+            <div class="chart-box"><h4>Rain — observed vs forecast (mm, AOI mean & max)</h4>
+              <div class="chart-wrap"><canvas id="ch-rain"></canvas></div></div>
+            <div class="chart-box"><h4>Risk score — rule-based fusion (0–100)</h4>
+              <div class="chart-wrap"><canvas id="ch-gauge"></canvas></div></div>
+            <div class="chart-box"><h4>7-day outlook — daily rain (mm) & probability</h4>
+              <div class="chart-wrap"><canvas id="ch-7rain"></canvas></div></div>
+            <div class="chart-box"><h4>7-day outlook — temperature max / min (°C)</h4>
+              <div class="chart-wrap"><canvas id="ch-7temp"></canvas></div></div>
+          </div>
+          <div class="sec-note" id="met-note"></div>
+        </div>
+      </section>
+
+      <section class="block" id="sec-hydro">
+        <button class="sec-head">🌊 Hydrological Analysis <span class="chev">▾</span></button>
+        <div class="sec-body">
+          <div class="grid2">
+            <div>
+              <div class="chart-box" style="margin-bottom:1rem"><h4>Forecast discharge by lead time (m³/s, GloFAS)</h4>
+                <div class="chart-wrap"><canvas id="ch-discharge"></canvas></div></div>
+              <table id="st-table">
+                <thead><tr><th>Station</th><th>Peak (m³/s)</th><th>Category</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div>
+              <div id="mini-map"></div>
+              <div class="sec-note">Click a station row or marker to focus it. The outline is the assessed AOI.</div>
+            </div>
+          </div>
+          <div class="sec-note" id="hydro-note"></div>
+        </div>
+      </section>
+
+      <section class="block" id="sec-exp">
+        <button class="sec-head">👥 Exposure &amp; Vulnerability <span class="chev">▾</span></button>
+        <div class="sec-body">
+          <div class="grid2">
+            <div class="chart-box"><h4>Population exposure (WorldPop 2020)</h4>
+              <div class="chart-wrap"><canvas id="ch-pop"></canvas></div></div>
+            <div id="exp-cards" class="cards" style="margin:0"></div>
+          </div>
+          <div class="sec-note">Floodplain population uses a slope-based proxy (documented limitation) —
+            Sentinel-1 inundation mapping is the planned replacement.</div>
+        </div>
+      </section>
+
+      <section class="block" id="sec-ai">
+        <button class="sec-head">🤖 Risk Explanation <span class="chev">▾</span></button>
+        <div class="sec-body">
+          <div class="grid2">
+            <div class="chart-box"><h4>Component contributions (score × weight)</h4>
+              <div class="chart-wrap"><canvas id="ch-comp"></canvas></div></div>
+            <div>
+              <div id="ai-text" style="line-height:1.6; font-size:0.93rem"></div>
+              <div class="sec-note">The score and decision are computed by transparent rules
+                (component scores × published weights). Language is drafted by AI from those
+                numbers — it never sets them.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block" id="sec-act">
+        <button class="sec-head">✅ Recommended Actions <span class="chev">▾</span></button>
+        <div class="sec-body">
+          <ol class="actions" id="actions"></ol>
+          <div class="sec-note">Rule-based recommendations derived from the decision level —
+            verify against PMD/FFD advisories before public action.</div>
+        </div>
+      </section>
+
+      <footer id="foot"></footer>
+    </div>
+  </main>
+
+  <div id="sum-overlay">
+    <div id="sum-box">
+      <h3>🧾 Plain-language summary <button class="x" id="sum-close" title="Close">✕</button></h3>
+      <div id="sum-body"></div>
+    </div>
+  </div>
+
+  <canvas id="fx-canvas"></canvas>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="{{ url_for('static', filename='js/risk.js') }}"></script>
+</body>
+</html>

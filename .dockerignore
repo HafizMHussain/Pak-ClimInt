@@ -1,0 +1,22 @@
+# Secrets — NEVER baked into the image; mounted at runtime instead
+credentials/
+.env
+
+# Data caches / outputs — mounted as a volume for persistence
+data/
+
+# Dev-only
+webapp/
+notebooks/
+docs/
+tests/
+scripts/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.git/
+.gitignore
+README.md
+CLAUDE.md
+requirements.txt

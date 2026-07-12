@@ -1,0 +1,20 @@
+# Secrets — never commit these
+credentials/
+.env
+
+# Data outputs (large rasters, regenerate from agents)
+data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Extra safety nets
+*.pem
+*.key
+.pytest_cache/

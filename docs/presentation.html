@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NDMA Flood Early-Warning Intelligence Platform — Chairman Briefing</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg:#0c1210; --panel:rgba(18,24,22,.75); --border:rgba(255,255,255,.14);
+    --text:#eef2f0; --dim:#9fb0a8; --accent:#35c48d; --accent2:#4aa3df;
+    --warn:#f0c53f; --danger:#e35d5d; --purple:#8e24aa;
+  }
+  html,body { height:100%; overflow:hidden; background:var(--bg); color:var(--text);
+    font-family:"Segoe UI",system-ui,sans-serif; }
+  /* deck machinery */
+  .slide { position:absolute; inset:0; padding:4.5vh 6vw; display:none;
+    flex-direction:column; justify-content:center; }
+  .slide.active { display:flex; animation:fade .35s ease; }
+  @keyframes fade { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
+  #progress { position:fixed; bottom:0; left:0; height:4px; background:var(--accent);
+    transition:width .3s ease; z-index:10; }
+  #counter { position:fixed; bottom:14px; right:20px; font-size:.8rem; color:var(--dim); z-index:10; }
+  #hint { position:fixed; bottom:14px; left:20px; font-size:.72rem; color:var(--dim); z-index:10; }
+  /* typography */
+  .k { color:var(--accent); }
+  .b { color:var(--accent2); }
+  h1 { font-size:3.4rem; line-height:1.12; letter-spacing:-.5px; }
+  h2 { font-size:2rem; margin-bottom:2.6vh; padding-bottom:1.2vh;
+       border-bottom:2px solid var(--accent); display:inline-block; align-self:flex-start; }
+  h3 { font-size:1.05rem; margin-bottom:.5rem; color:var(--accent); }
+  p,li,td,th { font-size:1.05rem; line-height:1.55; }
+  small,.dim { color:var(--dim); }
+  ul { margin-left:1.3rem; }
+  li { margin:.35rem 0; }
+  /* building blocks */
+  .cards { display:grid; gap:1.1rem; margin-top:1.4vh; }
+  .c2{grid-template-columns:1fr 1fr;} .c3{grid-template-columns:1fr 1fr 1fr;}
+  .c4{grid-template-columns:repeat(4,1fr);} .c5{grid-template-columns:repeat(5,1fr);}
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    padding:1rem 1.1rem; backdrop-filter:blur(8px); }
+  .card .big { font-size:1.9rem; font-weight:700; color:var(--accent); }
+  .card.alt .big { color:var(--accent2); }
+  table { border-collapse:collapse; width:100%; margin-top:1vh;
+    background:var(--panel); border-radius:12px; overflow:hidden; }
+  th { background:rgba(53,196,141,.14); color:var(--accent); text-align:left; }
+  th,td { padding:.55rem .8rem; border-bottom:1px solid rgba(255,255,255,.07); }
+  tr:last-child td { border-bottom:none; }
+  .flow { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin:1.2vh 0; }
+  .node { background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:.55rem .9rem; font-size:.95rem; text-align:center; }
+  .node b { color:var(--accent); display:block; font-size:1rem; }
+  .arrow { color:var(--accent); font-size:1.3rem; }
+  .tag { display:inline-block; background:rgba(53,196,141,.15); color:var(--accent);
+    border:1px solid rgba(53,196,141,.4); border-radius:999px; padding:.1rem .7rem;
+    font-size:.78rem; margin:.15rem .2rem .15rem 0; }
+  .banner { background:linear-gradient(90deg,rgba(53,196,141,.16),rgba(74,163,223,.14));
+    border:1px solid rgba(53,196,141,.45); border-radius:14px; padding:1.1rem 1.4rem;
+    font-size:1.25rem; margin-top:2vh; }
+  .ladder { display:flex; gap:.8rem; margin-top:1.2vh; }
+  .step { flex:1; border-radius:12px; padding:.8rem; text-align:center; color:#fff; }
+  .step b { display:block; font-size:1.15rem; }
+  .note { position:absolute; bottom:5.5vh; left:6vw; right:6vw; font-size:.8rem;
+    color:var(--dim); border-top:1px dashed var(--border); padding-top:.6vh; display:none; }
+  body.notes .note { display:block; }
+  /* title slide */
+  .title-slide { text-align:center; align-items:center; }
+  .title-slide .crest { font-size:4rem; }
+  .grad { background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  @media print {
+    html,body { overflow:visible; height:auto; background:#0c1210; }
+    .slide { display:flex !important; position:relative; page-break-after:always;
+      height:100vh; }
+    #progress,#counter,#hint { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 1 ▸ TITLE -->
+<section class="slide title-slide active">
+  <div class="crest">🇵🇰</div>
+  <h1><span class="grad">Multi-Agent Flood Early-Warning</span><br>Intelligence Platform</h1>
+  <p style="margin-top:2.2vh; font-size:1.3rem;">AI-orchestrated · GIS-native · Built entirely on official open data</p>
+  <p class="dim" style="margin-top:1.2vh;">Briefing for the Chairman, National Disaster Management Authority</p>
+  <p class="dim" style="margin-top:4vh; font-size:.9rem;">Prototype v1 · July 2026 · NDMA Technical Team</p>
+  <div class="note">Open with the 2022 floods: 33 million affected. The question this project answers — can we see the next one coming, for any district of Pakistan, automatically?</div>
+</section>
+
+<!-- 2 ▸ PROBLEM -->
+<section class="slide">
+  <h2>The problem we set out to solve</h2>
+  <div class="cards c3">
+    <div class="card"><div class="big">2010</div><p>Superflood — ~2,000 lives lost, 20M affected. Marala Headworks passed ~260,000 cusecs.</p></div>
+    <div class="card"><div class="big">2022</div><p>Monsoon floods — 33M affected, $30B+ damage. One-third of the country inundated.</p></div>
+    <div class="card"><div class="big">Today</div><p>Flood intelligence is fragmented: rainfall, river flows, terrain and population sit in separate systems, joined manually under pressure.</p></div>
+  </div>
+  <div class="banner">Decision-makers need <b>one screen</b> that fuses rainfall, river forecasts, terrain and exposure into a single, defensible risk assessment — for <b>any</b> basin, province or district — in minutes, not days.</div>
+  <div class="note">Emphasize the manual-fusion pain point — every number in the room today comes from a different office.</div>
+</section>
+
+<!-- 3 ▸ WHAT WE BUILT -->
+<section class="slide">
+  <h2>What we built</h2>
+  <div class="cards c4">
+    <div class="card"><div class="big">4+1</div><p><b>Specialist agents</b><br>Weather · River · Terrain · Exposure, orchestrated by a Coordinator that issues the decision.</p></div>
+    <div class="card alt"><div class="big">130</div><p><b>Areas of interest</b><br>5 river basins + 6 provinces + 119 districts — one dropdown drives the entire system.</p></div>
+    <div class="card"><div class="big">0-100</div><p><b>Rule-based risk score</b><br>Transparent weighted fusion → NDMA-style decision ladder. No black box.</p></div>
+    <div class="card alt"><div class="big">100%</div><p><b>Official open data</b><br>NASA · NOAA · Copernicus · USGS · WorldPop. Zero data cost, full licence compliance.</p></div>
+  </div>
+  <div class="cards c2" style="margin-top:1.4vh;">
+    <div class="card"><h3>Full-screen WebGIS</h3><p>Dark glassmorphism UI · agent-wise layer control · province/district rain choropleths with on-map values · draggable legend · measurement &amp; drawing tools · live station markers coloured by FFD flood category.</p></div>
+    <div class="card"><h3>Automatic reporting</h3><p>Every assessment produces a full situation report — saved locally as Markdown + JSON with complete provenance (every number traceable to its agent), plus a browsable report history.</p></div>
+  </div>
+  <div class="note">This slide is the 30-second version. Everything after it is proof.</div>
+</section>
+
+<!-- 4 ▸ DEMO FLOW -->
+<section class="slide">
+  <h2>Live demonstration — 3 minutes</h2>
+  <div class="flow">
+    <div class="node"><b>1 · Select AOI</b>e.g. "Chenab" or any district</div><span class="arrow">→</span>
+    <div class="node"><b>2 · Map loads</b>terrain, rivers, rainfall, boundaries</div><span class="arrow">→</span>
+    <div class="node"><b>3 · Run pipelines</b>🌧️ 🌊 ⛰️ 👥 — each independent</div><span class="arrow">→</span>
+    <div class="node"><b>4 · Full risk</b>score · decision · agent conversation</div><span class="arrow">→</span>
+    <div class="node"><b>5 · Report</b>💾 saved with one click</div>
+  </div>
+  <table>
+    <tr><th>Pipeline</th><th>What the Chairman sees</th><th>Typical time</th></tr>
+    <tr><td>🌧️ Weather</td><td>Observed 24/72 h + forecast 72 h rain cards (mean &amp; max, data latency shown)</td><td>4–13 s</td></tr>
+    <tr><td>🌊 Disaster</td><td>Stations recolour by FFD flood category; worst station named</td><td>3–35 s</td></tr>
+    <tr><td>⛰️ Terrain / 👥 Exposure</td><td>AOI area · population &amp; floodplain population</td><td>2–3 s (cached)</td></tr>
+    <tr><td>⚖️ Full risk</td><td>Banner: LOW 0/100 → routine monitoring · full agent conversation · report</td><td>~25 s</td></tr>
+  </table>
+  <div class="note">Have localhost:5000 open in the next tab. If internet fails: cached Chenab run still works end-to-end.</div>
+</section>
+
+<!-- 5 ▸ DATA FOUNDATION -->
+<section class="slide">
+  <h2>Data foundation — every number has an official source</h2>
+  <table>
+    <tr><th>Domain</th><th>Source (owner)</th><th>Resolution</th><th>Update cycle</th><th>Why chosen</th></tr>
+    <tr><td>🌧️ Observed rain</td><td>GPM IMERG V07 (NASA)</td><td>~11 km, 30-min</td><td>1–3 day latency, shown in UI</td><td>Global standard; sees the whole basin incl. upstream catchments outside Pakistan</td></tr>
+    <tr><td>🌦️ Forecast rain</td><td>GFS 0.25° (NOAA)</td><td>~28 km</td><td>4 model runs/day</td><td>Openly licensed operational NWP; latest run auto-selected</td></tr>
+    <tr><td>🌊 River discharge</td><td>GloFAS (Copernicus EU)</td><td>0.05°, 5 lead times to +120 h</td><td>Daily forecast cycle</td><td>Only free operational discharge forecast covering the entire Indus system</td></tr>
+    <tr><td>⛰️ Terrain</td><td>SRTM 30 m (NASA/USGS) + HydroSHEDS (WWF)</td><td>30 m / 460 m</td><td>Static</td><td>Reference global DEM and hydrology derivative</td></tr>
+    <tr><td>👥 Population</td><td>WorldPop 100 m (Univ. of Southampton)</td><td>100 m</td><td>2020 baseline</td><td>Humanitarian-planning standard (UN OCHA, WHO)</td></tr>
+    <tr><td>🗺️ Boundaries</td><td>FAO GAUL 2015 L1/L2</td><td>Simplified 500 m</td><td>Static</td><td>Official UN admin layers; disputed areas handled explicitly</td></tr>
+  </table>
+  <p style="margin-top:1.2vh;"><span class="tag">Classification: Pakistan FFD flood-limit bands (cusecs, per station)</span> <span class="tag">Total data cost: $0</span> <span class="tag">Sources documented in code headers</span></p>
+  <div class="note">If asked "why not PMD data": PMD publishes no machine-readable API; these are the automatable official equivalents, and outputs are designed to be verified against FFD/PMD bulletins, not replace them.</div>
+</section>
+
+<!-- 6 ▸ ARCHITECTURE -->
+<section class="slide">
+  <h2>System architecture</h2>
+  <div class="flow" style="justify-content:center;">
+    <div class="node"><b>Browser WebGIS</b>Leaflet · vanilla JS<br><small>presentation only</small></div>
+    <span class="arrow">⇄</span>
+    <div class="node"><b>Flask API</b>12 JSON endpoints<br><small>thin — zero analysis logic</small></div>
+    <span class="arrow">⇄</span>
+    <div class="node" style="border-color:var(--accent);"><b>Agent layer</b>ALL logic lives here once<br><small>weather · river · terrain · population<br>coordinator · report · AOI resolver</small></div>
+    <span class="arrow">⇄</span>
+    <div class="node"><b>External services</b>Google Earth Engine<br>Copernicus EWDS<br><small>Anthropic (warning text only)</small></div>
+  </div>
+  <div class="cards c3" style="margin-top:1.6vh;">
+    <div class="card"><h3>Separation of concerns</h3><p><b class="k">Measurement</b> (4 deterministic agents) · <b class="k">Judgement</b> (rule-based coordinator) · <b class="k">Language</b> (LLM, wording only). Each layer independently testable and replaceable.</p></div>
+    <div class="card"><h3>Compute where the data lives</h3><p>Heavy geoprocessing (zonal statistics, terrain) runs on Google's Earth Engine servers — our machine only orchestrates. Batched calls: 1–2 round-trips per agent.</p></div>
+    <div class="card"><h3>Two frontends, one brain</h3><p>Streamlit for internal iteration; Flask + Leaflet WebGIS for operations. Both call the same agent modules — logic exists exactly once.</p></div>
+  </div>
+  <div class="note">The architecture question WILL come from the AI researchers — the answer is the measurement/judgement/language separation.</div>
+</section>
+
+<!-- 7 ▸ AGENTS -->
+<section class="slide">
+  <h2>The specialist agents</h2>
+  <div class="cards c4">
+    <div class="card"><h3>🌧️ Weather</h3><p><b>In:</b> AOI geometry<br><b>Out:</b> 24/72 h observed + 72 h forecast rain (AOI mean &amp; max), data latency<br><small>Windows anchor to newest satellite image — staleness is measured, never hidden</small></p></div>
+    <div class="card"><h3>🌊 River</h3><p><b>In:</b> in-AOI stations + weather's rain outlook<br><b>Out:</b> discharge per station (+24…+120 h) classified into FFD categories; worst station<br><small>Channel-snapping window fixes grid offsets</small></p></div>
+    <div class="card"><h3>⛰️ Terrain</h3><p><b>In:</b> AOI geometry<br><b>Out:</b> DEM, slope, flow-accumulation GeoTIFFs + AOI area<br><small>Static — computed once per AOI, cached forever</small></p></div>
+    <div class="card"><h3>👥 Exposure</h3><p><b>In:</b> AOI geometry<br><b>Out:</b> total population + floodplain population (slope&lt;2° proxy)<br><small>e.g. Chenab: 69.1M total, 51M floodplain</small></p></div>
+  </div>
+  <div class="banner" style="font-size:1.05rem;"><b>Coordinator agent</b> resolves the AOI once, runs the four specialists in sequence, hands the weather agent's rain outlook to the river agent as context, logs every hand-off into an <b>auditable conversation</b>, then fuses components into the score and decision — and commissions the report.</div>
+  <div class="note">Point out the genuine data hand-off (weather→river): agents talk with real numbers, not theatre.</div>
+</section>
+
+<!-- 8 ▸ AGENT COMMUNICATION -->
+<section class="slide">
+  <h2>Agents talk — and the conversation is evidence</h2>
+  <div class="card" style="font-family:Consolas,monospace; font-size:.92rem; line-height:1.7;">
+    <p><b class="k">coordinator → all agents:</b> New assessment for AOI 'chenab'. Resolving geometry and in-AOI FFD stations.</p>
+    <p><b class="k">coordinator → terrain:</b> Prepare static terrain layers for Chenab basin.</p>
+    <p><b class="b">terrain → coordinator:</b> Layers ready. AOI area 88,788 km²; DEM/slope/flow-accumulation cached.</p>
+    <p><b class="b">weather → river:</b> Rain outlook for your discharge context: 10.9 mm fell (72 h basin mean, 32 h latency); 11.5 mm forecast next 72 h.</p>
+    <p><b class="b">river → coordinator:</b> Worst station Trimmu: normal (1,417 m³/s peak over 120 h horizon).</p>
+    <p><b class="k">coordinator → decision:</b> Components {river: 0, rain_forecast: 0, rain_observed: 0} → score 0/100 (low).</p>
+    <p><b class="k">decision → report:</b> Generate the situation report.</p>
+  </div>
+  <p style="margin-top:1.4vh;">Every message is <b>generated by rules from the real numbers</b> — no LLM involved — and is stored in the saved JSON. The full reasoning chain of any warning can be audited months later.</p>
+  <div class="note">This is a real conversation log from yesterday's run — not an illustration.</div>
+</section>
+
+<!-- 9 ▸ AOI SYSTEM -->
+<section class="slide">
+  <h2>One selector, any geography</h2>
+  <div class="flow">
+    <div class="node"><b>"chenab"</b>river basin<br><small>HydroBASINS polygon union</small></div>
+    <div class="node"><b>"province:Punjab"</b>GAUL level-1</div>
+    <div class="node"><b>"district:Multan"</b>GAUL level-2</div>
+    <span class="arrow">→</span>
+    <div class="node" style="border-color:var(--accent);"><b>AOI resolver</b>geometry · cache key ·<br>in-AOI FFD stations · GloFAS window</div>
+    <span class="arrow">→</span>
+    <div class="node"><b>Everything</b>map layers · outline ·<br>all pipelines · risk · report</div>
+  </div>
+  <ul style="margin-top:1.6vh;">
+    <li><b>Stations follow geography:</b> a district's river assessment uses whichever gauged FFD stations physically fall inside its polygon — verified spatially, not assumed.</li>
+    <li><b>Honest gaps:</b> a district with no gauge runs in <i>degraded mode</i> — the river component is dropped and declared, never fabricated.</li>
+    <li>Rain choropleths are <b>clipped to the AOI</b>, values printed on each polygon; provincial and district forecast maps answer NDMA's "who gets how much rain, where" directly.</li>
+  </ul>
+  <div class="banner" style="font-size:1.05rem;">Adding a new AOI is a registry entry — <b>not</b> new code. All 119 districts of Pakistan work today.</div>
+  <div class="note">GIS engineers will probe the district-station logic — answer: EE filterBounds point-in-polygon at resolve time, one batched call.</div>
+</section>
+
+<!-- 10 ▸ RISK FUSION -->
+<section class="slide">
+  <h2>Risk fusion — transparent, reproducible, rule-based</h2>
+  <div class="cards c3">
+    <div class="card"><h3>River · weight 0.5</h3><p>Worst-station FFD category<br>normal 0 → low 30 → medium 50 → high 70 → very high 90 → exceptional 100</p></div>
+    <div class="card"><h3>Forecast rain · 0.3</h3><p>GFS 72 h AOI-mean (mm)<br>≥25→20 · ≥35→40 · ≥50→60 · ≥70→80 · ≥90→100</p></div>
+    <div class="card"><h3>Observed rain · 0.2</h3><p>GPM 72 h AOI-mean (mm)<br>same calibrated steps</p></div>
+  </div>
+  <p style="margin-top:1.4vh; text-align:center; font-size:1.15rem;">score = Σ weightᵢ · componentᵢ / Σ weightᵢ &nbsp;·&nbsp; <small class="dim">failed agents dropped, weights renormalised, "degraded" flagged</small></p>
+  <div class="ladder">
+    <div class="step" style="background:#2e7d32;"><b>&lt; 20 · LOW</b>routine monitoring</div>
+    <div class="step" style="background:#ef6c00;"><b>&lt; 40 · MODERATE</b>advisory to PDMA/districts</div>
+    <div class="step" style="background:#c62828;"><b>&lt; 60 · HIGH</b>flood alert · pre-position teams</div>
+    <div class="step" style="background:#7b1fa2;"><b>≥ 60 · SEVERE</b>flood warning · activate response</div>
+  </div>
+  <p style="margin-top:1.2vh;" class="dim">Anyone in this room can recompute the score from the report tables with a calculator. That is deliberate.</p>
+  <div class="note">The decision ladder mirrors NDMA's advisory→emergency escalation, so outputs drop into existing SOPs.</div>
+</section>
+
+<!-- 11 ▸ VALIDATION -->
+<section class="slide">
+  <h2>Calibrated on Pakistan's own flood history</h2>
+  <div class="cards c3">
+    <div class="card"><div class="big">~100 mm</div><p><b>2010 superflood</b> — peak 72 h basin-mean rainfall (GPM backtest, Chenab)</p></div>
+    <div class="card"><div class="big">~51 mm</div><p><b>2022 floods</b> — clearly separated from the non-flood baseline</p></div>
+    <div class="card"><div class="big">~34 mm</div><p><b>2018 ordinary monsoon</b> (control) — correctly stays LOW</p></div>
+  </div>
+  <ul style="margin-top:1.6vh;">
+    <li>Rain thresholds were <b>rejected and recalibrated</b> when the first metric (basin-max) failed the 2018 control — the system is tuned to <i>discriminate</i>, not to alarm.</li>
+    <li>Discharge backtest ranks 2010 &gt; 2022 ≈ 2018 correctly, and <b>quantified a real bias</b>: GloFAS runs ~2× low vs FFD-reported flows (2010 Marala: GloFAS ~114k vs ~260k reported cusecs).</li>
+    <li>That bias is <b>printed as a caveat in every report</b>: river categories are conservative until per-station correction lands. We publish our known weaknesses.</li>
+  </ul>
+  <div class="banner" style="font-size:1.05rem;">Validation artefacts are reproducible scripts in the repo (<code>scripts/backtest_rain.py</code>, <code>backtest_discharge.py</code>) — hydrologists can rerun them today.</div>
+  <div class="note">Finding and documenting the GloFAS bias is a credibility asset, not a weakness — lead with it before anyone asks.</div>
+</section>
+
+<!-- 11b ▸ INDEPENDENT CROSS-CHECK -->
+<section class="slide">
+  <h2>Cross-validated against an independent commercial provider</h2>
+  <div class="cards c2">
+    <div class="card"><h3>The test</h3><p>Meteoblue "precip today" map for 08 Jul 2026 (23 rainfall bands, 1–90 mm, ~4 km multi-model) compared zonally against our <b>NASA GPM</b> (observed) and <b>NOAA GFS</b> (forecast) for the same day.</p></div>
+    <div class="card"><h3 style="color:var(--accent2)">The result</h3><p>Within Pakistan, all three products agree: a light-rain day (≤12 mm) — matching the dashboard's live values. Spatial rank correlation <b>0.5–0.7</b>: where Meteoblue paints more rain, our data shows more rain.</p></div>
+  </div>
+  <table>
+    <tr><th>Apparent difference</th><th>Verified explanation</th></tr>
+    <tr><td>Meteoblue's heavy bands (12–90 mm) missing from our AOIs</td><td><b>0% of those bands lie inside Pakistan</b> — they are in India (76–79°E); no Pakistani AOI is affected</td></tr>
+    <tr><td>Meteoblue peaks sharper than GFS</td><td>~4 km model resolves local convection that a 25 km global model smooths — a model-resolution property, not an error</td></tr>
+    <tr><td>Satellite (GPM) totals lower</td><td>Observed day was 18/48 images published at check time — the exact 1–3 day latency the UI already displays</td></tr>
+  </table>
+  <div class="banner" style="font-size:1.1rem;">Every difference between our data and an independent provider is <b>explainable, quantified, and already disclosed on-screen</b>.</div>
+  <div class="note">Run 09 July against Meteoblue's 08-Jul precipitation map; the check scripts are reproducible. Key line: differences are explainable and disclosed — that is what data integrity looks like.</div>
+</section>
+
+<!-- 12 ▸ AI BOUNDARY -->
+<section class="slide">
+  <h2>Where AI is — and where it is not allowed</h2>
+  <table>
+    <tr><th>Step</th><th>AI?</th><th>Why</th></tr>
+    <tr><td>Data acquisition (4 agents)</td><td><b class="k">No — deterministic code</b></td><td>Numbers must be measurements</td></tr>
+    <tr><td>Risk score · level · decision</td><td><b class="k">No — fixed rules</b></td><td>Must be reproducible &amp; auditable</td></tr>
+    <tr><td>Agent conversation log</td><td><b class="k">No — rule-generated</b></td><td>Evidence, not narrative</td></tr>
+    <tr><td>Situation report</td><td><b class="k">No — template over computed values</b></td><td>Every figure traceable</td></tr>
+    <tr><td>Public warning wording</td><td><b class="b">Yes — one LLM call (Anthropic)</b></td><td>Plain-language phrasing only; forbidden to invent, change or recompute any figure; falls back to a fixed template if offline; operator reviews before dissemination</td></tr>
+  </table>
+  <div class="banner">No AI system ever produces a <b>number</b> or a <b>decision</b> on this platform. Hallucination is prevented <b>by architecture</b>, not by hoping the model behaves.</div>
+  <div class="note">This is the single most important slide for leadership trust. Pause on it.</div>
+</section>
+
+<!-- 13 ▸ REPORTS -->
+<section class="slide">
+  <h2>Reporting — automatic, local, fully traceable</h2>
+  <div class="cards c2">
+    <div class="card"><h3>Generated after every decision</h3>
+      <ul><li>Assessment &amp; decision table · component scores · per-station discharge in m³/s <b>and cusecs</b> · rainfall tables with data latency · exposure · explicit caveats</li>
+      <li>Saved automatically to <code>data\reports\</code> as <b>Markdown + JSON</b>, filename = AOI + timestamp — nothing overwritten, history accumulates</li></ul></div>
+    <div class="card"><h3>Operator workflow</h3>
+      <ul><li>💾 <b>Save report</b> button re-saves the on-screen assessment without re-running agents</li>
+      <li><b>Report history</b> panel — any past report opens in one click (MD or JSON)</li>
+      <li>The JSON twin contains every agent output and the full conversation — a warning issued today can be reconstructed exactly, months later</li></ul></div>
+  </div>
+  <div class="banner" style="font-size:1.05rem;">Reproducibility standard: <b>same inputs → same score → same decision → same report.</b> An inquiry can replay any assessment.</div>
+  <div class="note">Show a saved sitrep briefly — the caveats section demonstrates institutional honesty.</div>
+</section>
+
+<!-- 14 ▸ RELIABILITY -->
+<section class="slide">
+  <h2>Engineered for failure — degraded, never wrong</h2>
+  <div class="cards c2">
+    <div class="card"><h3>Graceful degradation</h3>
+      <ul><li>Any agent failure → component dropped, weights renormalised, <b>"DEGRADED"</b> stamped on banner &amp; report with the failed agent named</li>
+      <li>Zero usable data → decision = <b>manual_review</b>. The system never guesses.</li>
+      <li>GloFAS not yet published → automatic fallback to yesterday's cycle</li>
+      <li>Satellite latency → measured and displayed, not hidden</li>
+      <li>LLM offline → deterministic template text; assessment unaffected</li></ul></div>
+    <div class="card"><h3>Caching — only what cannot change</h3>
+      <table style="font-size:.9rem;">
+        <tr><th>Cached</th><th>Basis</th></tr>
+        <tr><td>Terrain rasters, population totals</td><td>Static datasets (delete file to refresh)</td></tr>
+        <tr><td>GloFAS NetCDF</td><td>Keyed by forecast date — a day's forecast never changes</td></tr>
+        <tr><td>Map tile URLs</td><td>2 h TTL (URLs, never data)</td></tr>
+        <tr><td><b>Live rain &amp; discharge stats</b></td><td><b class="k">Never cached — recomputed every run</b></td></tr>
+      </table></div>
+  </div>
+  <p style="margin-top:1.2vh;">Final audit before this briefing: <b class="k">18/18 end-to-end checks · 7/7 unit tests · all five pipelines verified live</b> on basins, provinces and districts.</p>
+  <div class="note">If internet dies mid-demo: static layers still render, dynamic agents fail loudly and correctly — which itself demonstrates the design.</div>
+</section>
+
+<!-- 15 ▸ LIMITATIONS -->
+<section class="slide">
+  <h2>Limitations — stated before you ask</h2>
+  <table>
+    <tr><th>Limitation</th><th>Impact</th><th>Planned fix</th></tr>
+    <tr><td>GloFAS ~2× low vs FFD flows</td><td>River categories conservative (under-warn)</td><td>Per-station bias correction or GloFAS return-period thresholds</td></tr>
+    <tr><td>Non-Chenab FFD bands unverified</td><td>Category boundaries approximate</td><td>Manual verification against ffd.pmd.gov.pk (site blocks automation)</td></tr>
+    <tr><td>Floodplain = slope&lt;2° proxy</td><td>Exposure indicative, not for evacuation planning</td><td>Sentinel-1 SAR inundation mapping</td></tr>
+    <tr><td>No flash-flood / coastal / urban drainage</td><td>Riverine floods only</td><td>Out of GloFAS scope — additional agents later</td></tr>
+    <tr><td>Rain thresholds calibrated on Chenab only</td><td>Other basins reuse steps</td><td>Per-basin backtests (script exists)</td></tr>
+    <tr><td>Observed rain lags 1–3 days · exposure is 2020 baseline</td><td>Quantified &amp; displayed</td><td>IMERG Early Run · newer WorldPop</td></tr>
+  </table>
+  <p class="dim" style="margin-top:1vh;">Every one of these is also printed inside the generated reports. A tool that hides its weaknesses cannot be trusted with warnings.</p>
+  <div class="note">Volunteering limitations first disarms the hardest questioners — the hydrologists already know most of these.</div>
+</section>
+
+<!-- 16 ▸ ROADMAP -->
+<section class="slide">
+  <h2>Roadmap to nationwide operations</h2>
+  <div class="flow">
+    <div class="node"><b>Phase 1 · Hardening</b>Verify all FFD bands ·<br>GloFAS bias correction ·<br>per-basin calibration<br><small>~weeks</small></div>
+    <span class="arrow">→</span>
+    <div class="node"><b>Phase 2 · Automation</b>Scheduled 6-hourly runs, all 119 districts ·<br>PostGIS + object storage ·<br>production WSGI<br><small>~1–2 months</small></div>
+    <span class="arrow">→</span>
+    <div class="node"><b>Phase 3 · Dissemination</b>SMS/email alert hooks on the decision ladder ·<br>operator review SOP ·<br>PDMA dashboards<br><small>with NDMA IT</small></div>
+    <span class="arrow">→</span>
+    <div class="node"><b>Phase 4 · Expansion</b>Sentinel-1 inundation agent ·<br>snowmelt (MODIS) · reservoirs ·<br>damage estimation<br><small>continuous</small></div>
+  </div>
+  <div class="cards c3" style="margin-top:1.6vh;">
+    <div class="card"><h3>Why it scales</h3><p>Heavy compute already runs on Google's infrastructure; our servers only orchestrate. Nationwide = registry entries + a scheduler, <b>not</b> new architecture.</p></div>
+    <div class="card"><h3>Operating cost</h3><p>Data $0 (all open licences) · Earth Engine research tier · pennies of LLM per assessment (optional). Cost is people, not licences.</p></div>
+    <div class="card"><h3>New hazards plug in</h3><p>Every future capability is just another agent with the same contract: JSON out, conversation in, weight in the fusion.</p></div>
+  </div>
+  <div class="note">The ask comes next — this slide shows the money and effort are modest and front-loaded on verification.</div>
+</section>
+
+<!-- 17 ▸ CLOSING -->
+<section class="slide title-slide">
+  <h1 style="font-size:2.5rem;"><span class="grad">Five pipelines. Official data only.<br>Rules decide — AI only speaks.</span></h1>
+  <div class="cards c3" style="margin-top:3vh; text-align:left; max-width:1100px;">
+    <div class="card"><h3>What exists today</h3><p>Working end-to-end for every basin, province and district — validated against 2010/2022/2018, fully documented, audited 18/18.</p></div>
+    <div class="card"><h3>What we ask</h3><p>Endorse a monsoon-season operational pilot: FFD band verification support, 2–3 districts + Chenab, alongside existing procedures.</p></div>
+    <div class="card"><h3>What Pakistan gets</h3><p>A defensible, explainable, sovereign early-warning capability — built on free data, owned by NDMA, expandable hazard by hazard.</p></div>
+  </div>
+  <p class="dim" style="margin-top:3.5vh;">Technical annexes: docs/ARCHITECTURE.md · docs/PRESENTATION_QA.md · live system at localhost:5000</p>
+  <div class="note">End on the pilot ask. Then open the WebGIS and take questions on the live system.</div>
+</section>
+
+<div id="progress"></div>
+<div id="counter"></div>
+<div id="hint">← → navigate · F fullscreen · N speaker notes · Ctrl+P → PDF</div>
+
+<script>
+  const slides = [...document.querySelectorAll(".slide")];
+  let i = 0;
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle("active", k === i));
+    document.getElementById("progress").style.width = ((i + 1) / slides.length * 100) + "%";
+    document.getElementById("counter").textContent = (i + 1) + " / " + slides.length;
+  }
+  addEventListener("keydown", (e) => {
+    if (["ArrowRight", "PageDown", " "].includes(e.key)) show(i + 1);
+    else if (["ArrowLeft", "PageUp"].includes(e.key)) show(i - 1);
+    else if (e.key === "Home") show(0);
+    else if (e.key === "End") show(slides.length - 1);
+    else if (e.key.toLowerCase() === "f") document.fullscreenElement
+      ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    else if (e.key.toLowerCase() === "n") document.body.classList.toggle("notes");
+  });
+  addEventListener("click", (e) => {
+    if (e.clientX > innerWidth * 0.66) show(i + 1);
+    else if (e.clientX < innerWidth * 0.15) show(i - 1);
+  });
+  show(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Dashboard — Pak-ClimInt</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      --bg: #0c1210; --surface-1: #131c18; --surface-2: #182420;
+      --border: rgba(255, 255, 255, 0.09); --text: #e8f0ec; --dim: #8fa39a;
+      --accent: #35c48d; --blue: #4aa3f0; --danger: #e66767;
+      --series-1: #3987e5; --series-2: #199e70; --series-3: #c98500;
+      --series-4: #9085e9; --series-5: #e66767;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(1200px 700px at 85% -10%, #14251e 0%, var(--bg) 55%);
+      color: var(--text); min-height: 100vh; font-size: 15px;
+    }
+    #fx-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+    header, main { position: relative; z-index: 1; }
+
+    header {
+      position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap;
+      align-items: center; gap: 0.9rem; padding: 0.7rem 1.4rem;
+      background: rgba(12, 18, 16, 0.88); backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    header img { width: 34px; height: 34px; }
+    .h-brand { font-weight: 700; font-size: 1.02rem; }
+    .h-brand small { display: block; font-weight: 400; color: var(--dim); font-size: 0.68rem; }
+    #h-sub { color: var(--dim); font-size: 0.86rem; }
+    .live-dot {
+      display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+      background: var(--accent); margin-right: 6px; animation: pulse-dot 1.6s infinite;
+    }
+    @keyframes pulse-dot {
+      0% { box-shadow: 0 0 0 0 rgba(53, 196, 141, 0.55); }
+      70% { box-shadow: 0 0 0 9px rgba(53, 196, 141, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(53, 196, 141, 0); }
+    }
+    .h-btn {
+      padding: 0.42rem 0.9rem; border: 1px solid var(--border); border-radius: 9px;
+      background: rgba(255, 255, 255, 0.05); color: var(--text); cursor: pointer;
+      font-size: 0.82rem; text-decoration: none; transition: background 0.15s;
+    }
+    .h-btn:hover { background: rgba(255, 255, 255, 0.11); }
+    .h-right { margin-left: auto; display: flex; gap: 0.5rem; }
+
+    main { max-width: 1240px; margin: 0 auto; padding: 1.5rem 1.4rem 4rem; }
+
+    /* hero */
+    #hero {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 1.6rem;
+      background: linear-gradient(120deg, var(--surface-1), #14251e 70%);
+      border: 1px solid var(--border); border-radius: 16px;
+      padding: 1.15rem 1.6rem; margin-bottom: 1.1rem; overflow: hidden; position: relative;
+    }
+    #hero::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(100deg, transparent 30%, rgba(53,196,141,0.05) 50%, transparent 70%);
+      background-size: 240% 100%; animation: sheen 7s linear infinite; pointer-events: none;
+    }
+    @keyframes sheen { to { background-position: -240% 0; } }
+    #hero-icon { font-size: 3rem; animation: bob 3.6s ease-in-out infinite; }
+    @keyframes bob { 50% { transform: translateY(-6px); } }
+    #hero-big { font-size: 2.6rem; font-weight: 700; line-height: 1.05; }
+    #hero-big small { font-size: 1rem; color: var(--dim); font-weight: 400; }
+    #hero-desc { color: var(--dim); font-size: 0.85rem; margin-top: 4px; }
+    .tickers { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-left: auto; }
+    .ticker { text-align: center; min-width: 72px; }
+    .ticker .tv { font-size: 1.2rem; font-weight: 700; }
+    .ticker .tl { color: var(--dim); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+
+    /* cards */
+    .cards { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 1.1rem; }
+    .kcard {
+      background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px;
+      padding: 1rem 1.1rem; min-height: 100px; display: flex; flex-direction: column;
+      justify-content: center; animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .kcard:hover { transform: translateY(-3px); border-color: var(--accent); }
+    .kcard .kv { font-size: 1.5rem; font-weight: 700; line-height: 1.15; }
+    .kcard .kl { color: var(--dim); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 5px; }
+    .kcard .ks { color: var(--dim); font-size: 0.78rem; margin-top: 3px; }
+    @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
+    .cards .kcard:nth-child(2) { animation-delay: 0.06s; }
+    .cards .kcard:nth-child(3) { animation-delay: 0.12s; }
+    .cards .kcard:nth-child(4) { animation-delay: 0.18s; }
+    .cards .kcard:nth-child(5) { animation-delay: 0.24s; }
+
+    /* map + charts */
+    .panel {
+      background: var(--surface-1); border: 1px solid var(--border);
+      border-radius: 16px; padding: 1.1rem 1.25rem; margin-bottom: 1.1rem;
+      opacity: 0; transform: translateY(22px);
+      transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .panel.revealed { opacity: 1; transform: none; }
+    .panel h3 { font-size: 0.98rem; margin-bottom: 0.8rem; }
+    #big-map { height: 480px; border-radius: 12px; border: 1px solid var(--border); }
+    .layer-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+    .chip {
+      padding: 0.34rem 0.85rem; border-radius: 999px; font-size: 0.78rem;
+      border: 1px solid var(--border); background: rgba(255,255,255,0.05);
+      color: var(--dim); cursor: pointer; transition: all 0.15s;
+    }
+    .chip.on { background: rgba(53, 196, 141, 0.16); border-color: var(--accent); color: var(--accent); }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+    @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+    .chart-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem; }
+    .chart-box h4 { font-size: 0.82rem; color: var(--dim); font-weight: 600; margin-bottom: 0.6rem; }
+    .chart-wrap { position: relative; height: 250px; }
+    .sec-note { color: var(--dim); font-size: 0.78rem; margin-top: 0.7rem; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--dim); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .cat-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 7px; }
+
+    /* pulsing flagged map marker */
+    .pulse-marker { position: relative; }
+    .pulse-marker .core {
+      width: 16px; height: 16px; border-radius: 50%; border: 2px solid #0c1210;
+    }
+    .pulse-marker .ring {
+      position: absolute; inset: -6px; border-radius: 50%;
+      border: 2px solid currentColor; animation: ring 1.5s ease-out infinite;
+    }
+    @keyframes ring { from { transform: scale(0.5); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+
+    .skeleton { border-radius: 14px; background: linear-gradient(100deg, var(--surface-1) 40%, #1d2a24 50%, var(--surface-1) 60%); background-size: 200% 100%; animation: shimmer 1.4s infinite; margin-bottom: 1rem; }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    footer { text-align: center; color: var(--dim); font-size: 0.75rem; padding: 1.4rem; }
+
+    /* ---------- cinematic layer ---------- */
+    body::before, body::after {
+      content: ""; position: fixed; width: 55vw; height: 55vw; border-radius: 50%;
+      filter: blur(90px); opacity: 0.14; z-index: 0; pointer-events: none;
+    }
+    body::before {
+      background: radial-gradient(circle, #35c48d, transparent 65%);
+      top: -18vw; left: -12vw; animation: aur1 18s ease-in-out infinite alternate;
+    }
+    body::after {
+      background: radial-gradient(circle, #4aa3f0, transparent 65%);
+      bottom: -20vw; right: -14vw; animation: aur2 22s ease-in-out infinite alternate;
+    }
+    @keyframes aur1 { to { transform: translate(9vw, 6vh) scale(1.15); } }
+    @keyframes aur2 { to { transform: translate(-8vw, -6vh) scale(1.1); } }
+
+    @property --ga { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+    #hero {
+      border: 1px solid transparent;
+      background:
+        linear-gradient(120deg, var(--surface-1), #14251e 70%) padding-box,
+        conic-gradient(from var(--ga), #35c48d, #4aa3f0, #9085e9, #35c48d) border-box;
+      animation: spin-border 7s linear infinite;
+    }
+    @keyframes spin-border { to { --ga: 360deg; } }
+
+    #hero-big {
+      background: linear-gradient(100deg, #e8f0ec 38%, #7df2c5 50%, #e8f0ec 62%);
+      background-size: 220% 100%; -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; animation: text-shimmer 4.5s linear infinite;
+    }
+    @keyframes text-shimmer { to { background-position: -220% 0; } }
+
+    .kcard { will-change: transform; }
+    .kcard:hover { box-shadow: 0 14px 34px rgba(53, 196, 141, 0.16); }
+
+    #flash { position: fixed; inset: 0; background: #eaf6ff; opacity: 0; pointer-events: none; z-index: 6; }
+    #flash.zap { animation: zap 0.65s ease-out; }
+    @keyframes zap {
+      0% { opacity: 0; } 7% { opacity: 0.32; } 14% { opacity: 0.04; }
+      22% { opacity: 0.22; } 100% { opacity: 0; }
+    }
+
+    /* ---------- 4D card scenes (Google-Weather style, realistic) ---------- */
+    .kcard { position: relative; overflow: hidden; }
+    .kcard .kv, .kcard .kl, .kcard .ks { position: relative; z-index: 1; }
+    .kscene { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.75; }
+    /* rain: gradient streaks with depth (near drops fast+bright, far slow+dim) + ground mist */
+    .kscene.rain i {
+      position: absolute; top: -16px; width: 2px; height: 14px; border-radius: 2px;
+      background: linear-gradient(180deg, rgba(111,199,255,0), #6fc7ff 70%, #bfe6ff);
+      animation: kdrop 1.15s linear infinite;
+    }
+    .kscene.rain i:nth-child(3n) { height: 20px; width: 2.4px; animation-duration: 0.8s; opacity: 0.95; }
+    .kscene.rain i:nth-child(3n+1) { height: 10px; width: 1.6px; animation-duration: 1.5s; opacity: 0.5; filter: blur(0.6px); }
+    @keyframes kdrop { to { transform: translateY(170px) translateX(-8px); opacity: 0.05; } }
+    .kscene.rain::before { /* rising mist where the rain lands */
+      content: ""; position: absolute; inset: auto 0 0 0; height: 34%;
+      background: linear-gradient(180deg, transparent, rgba(111, 199, 255, 0.10));
+      animation: mist 5s ease-in-out infinite;
+    }
+    @keyframes mist { 50% { opacity: 0.45; } }
+    /* storm: sheet-lightning flash washing over the card + flickering bolt */
+    .kscene.storm { opacity: 0.9; }
+    .kscene.storm::before {
+      content: ""; position: absolute; inset: 0;
+      background: radial-gradient(120% 90% at 70% -10%, rgba(226, 240, 255, 0.55), transparent 55%);
+      opacity: 0; animation: sheet 4.5s infinite;
+    }
+    @keyframes sheet {
+      0%, 78%, 100% { opacity: 0; } 80% { opacity: 1; } 82% { opacity: 0.08; }
+      84% { opacity: 0.7; } 88% { opacity: 0; }
+    }
+    .kscene.storm::after {
+      content: "⚡"; position: absolute; top: 6px; right: 10px; font-size: 1.35rem;
+      filter: drop-shadow(0 0 8px rgba(226, 240, 255, 0.9)); animation: bolt 4.5s infinite;
+    }
+    @keyframes bolt { 0%, 78%, 100% { opacity: 0; } 80%, 86% { opacity: 1; } 83% { opacity: 0.15; } }
+    /* sun: pulsing core + slowly rotating light rays */
+    .kscene.sun::before {
+      content: ""; position: absolute; top: -24px; right: -24px; width: 86px; height: 86px;
+      border-radius: 50%; background: radial-gradient(circle, #ffe9a8 25%, #ffd76e 48%, rgba(255,215,110,0) 72%);
+      box-shadow: 0 0 34px rgba(255, 215, 110, 0.35); animation: sun-pulse 4s ease-in-out infinite;
+    }
+    .kscene.sun::after { /* rotating rays */
+      content: ""; position: absolute; top: -58px; right: -58px; width: 154px; height: 154px;
+      background: repeating-conic-gradient(rgba(255, 215, 110, 0.14) 0 9deg, transparent 9deg 30deg);
+      border-radius: 50%; animation: rays 26s linear infinite;
+      -webkit-mask-image: radial-gradient(circle, #000 30%, transparent 68%);
+      mask-image: radial-gradient(circle, #000 30%, transparent 68%);
+    }
+    @keyframes rays { to { transform: rotate(360deg); } }
+    @keyframes sun-pulse { 50% { transform: scale(1.18); } }
+    /* volumetric drifting clouds (soft blurred puffs, two depths) */
+    .kscene.cloud::before, .kscene.cloud::after {
+      content: ""; position: absolute; border-radius: 999px; filter: blur(5px);
+      background: radial-gradient(ellipse at 35% 30%, rgba(196, 214, 207, 0.38), rgba(157, 179, 171, 0.16) 70%);
+      box-shadow: 18px 6px 0 -4px rgba(157, 179, 171, 0.2), -16px 8px 0 -6px rgba(157, 179, 171, 0.16);
+    }
+    .kscene.cloud::before { width: 74px; height: 24px; top: 10px; left: -90px; animation: cdrift 11s linear infinite; }
+    .kscene.cloud::after { width: 50px; height: 17px; top: 40px; left: -70px; filter: blur(7px); opacity: 0.7; animation: cdrift 16s linear infinite 3s; }
+    @keyframes cdrift { to { transform: translateX(420px); } }
+    /* liquid water fill — --lvl sets the surface height; depth-shaded with a glinting surface */
+    .kwater { position: absolute; left: -50%; width: 200%; height: 200%; top: var(--lvl, 80%); z-index: 0; pointer-events: none; }
+    .kwater::before, .kwater::after {
+      content: ""; position: absolute; inset: 0; border-radius: 42% 44% 41% 43%;
+      background: linear-gradient(180deg, var(--wcol, rgba(74, 163, 240, 0.20)), rgba(16, 48, 88, 0.30) 55%);
+      animation: liquid 8s linear infinite;
+      box-shadow: inset 0 3px 8px rgba(191, 230, 255, 0.25);
+    }
+    .kwater::after {
+      background: linear-gradient(180deg, rgba(74, 163, 240, 0.12), rgba(10, 34, 64, 0.22) 60%);
+      animation-duration: 11s; animation-direction: reverse; border-radius: 45% 41% 44% 40%;
+    }
+    @keyframes liquid { to { transform: rotate(360deg); } }
+    /* bubbles rising through the water */
+    .kwater i {
+      position: absolute; bottom: 30%; width: 4px; height: 4px; border-radius: 50%;
+      background: rgba(191, 230, 255, 0.5); animation: bubble 3.4s ease-in infinite;
+    }
+    @keyframes bubble {
+      0% { transform: translateY(0) scale(0.6); opacity: 0; }
+      15% { opacity: 0.8; }
+      100% { transform: translateY(-70px) scale(1.15); opacity: 0; }
+    }
+    /* layered mountain ridges: hazy far range, snow-capped near range */
+    .kmount { position: absolute; inset: auto 0 0 0; height: 62%; z-index: 0; pointer-events: none; }
+    .kmount::before { /* far ridge, atmospheric haze */
+      content: ""; position: absolute; inset: 0; opacity: 0.5; filter: blur(1.5px);
+      background: linear-gradient(180deg, #3a6450, #22422f);
+      clip-path: polygon(0 78%, 12% 52%, 24% 66%, 40% 38%, 55% 60%, 70% 30%, 84% 55%, 100% 42%, 100% 100%, 0 100%);
+    }
+    .kmount::after { /* near ridge with snow caps */
+      content: ""; position: absolute; inset: 0; opacity: 0.85;
+      background:
+        linear-gradient(180deg, #e8f0ec 0 8%, #35604a 9% 40%, #16301f 100%);
+      clip-path: polygon(0 100%, 8% 70%, 22% 44%, 34% 72%, 48% 34%, 63% 68%, 78% 48%, 90% 74%, 100% 60%, 100% 100%);
+    }
+    /* city skyline with twinkling windows */
+    .ksky {
+      position: absolute; inset: auto 0 0 0; height: 48%; z-index: 0; opacity: 0.6; pointer-events: none;
+      background: repeating-linear-gradient(90deg, #0a1512 0 14px, transparent 14px 20px,
+        #0d1a16 20px 32px, transparent 32px 40px, #091310 40px 50px, transparent 50px 58px);
+      -webkit-mask-image: linear-gradient(180deg, transparent, #000 35%);
+      mask-image: linear-gradient(180deg, transparent, #000 35%);
+    }
+    .ksky::after { /* lit windows flickering on */
+      content: ""; position: absolute; inset: 20% 0 0 0;
+      background: repeating-linear-gradient(90deg, transparent 0 4px, rgba(255, 222, 130, 0.55) 4px 6px, transparent 6px 26px),
+        repeating-linear-gradient(0deg, transparent 0 7px, rgba(0, 0, 0, 0.85) 7px 9px);
+      -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 14px, transparent 14px 20px, #000 20px 32px, transparent 32px 40px, #000 40px 50px, transparent 50px 58px);
+      mask-image: repeating-linear-gradient(90deg, #000 0 14px, transparent 14px 20px, #000 20px 32px, transparent 32px 40px, #000 40px 50px, transparent 50px 58px);
+      animation: windows 6s steps(2) infinite;
+    }
+    @keyframes windows { 50% { opacity: 0.55; } }
+
+    /* ---------- summary modal ---------- */
+    #sum-overlay {
+      position: fixed; inset: 0; z-index: 80; display: none;
+      background: rgba(5, 9, 8, 0.72); backdrop-filter: blur(6px);
+      align-items: center; justify-content: center; padding: 1.2rem;
+    }
+    #sum-overlay.open { display: flex; }
+    #sum-box {
+      width: min(680px, 96vw); max-height: 84vh; overflow-y: auto;
+      background: var(--surface-1); border: 1px solid var(--accent);
+      border-radius: 18px; padding: 1.5rem 1.7rem;
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.65);
+      animation: rise 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #sum-box h3 { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.9rem; }
+    #sum-box h3 .x { margin-left: auto; background: none; border: none; color: var(--dim); font-size: 1.3rem; cursor: pointer; }
+    #sum-box h3 .x:hover { color: var(--text); }
+    #sum-body p { line-height: 1.65; font-size: 0.93rem; margin-bottom: 0.85rem; }
+    #sum-body b { color: var(--accent); }
+    #sum-body .sum-note { color: var(--dim); font-size: 0.76rem; border-top: 1px solid var(--border); padding-top: 0.7rem; display: block; }
+
+    /* Google-Weather 7-day strip */
+    .day-strip { display: flex; gap: 0.7rem; overflow-x: auto; padding-bottom: 6px; }
+    .day-card {
+      flex: 0 0 110px; background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 14px; padding: 0.8rem 0.5rem; text-align: center;
+      position: relative; overflow: hidden; transition: transform 0.15s, border-color 0.15s, box-shadow 0.2s;
+    }
+    .day-card:hover { transform: translateY(-4px) scale(1.03); border-color: var(--accent); box-shadow: 0 10px 26px rgba(53,196,141,0.15); }
+    .dc-wd { color: var(--dim); font-size: 0.72rem; font-weight: 600; text-transform: uppercase; }
+    .dc-icon { position: relative; height: 54px; margin: 0.35rem 0; }
+    .dc-t { font-weight: 700; font-size: 1.02rem; }
+    .dc-tmin { color: var(--dim); font-size: 0.8rem; }
+    .dc-rain { color: #6fc7ff; font-size: 0.72rem; margin-top: 2px; min-height: 1em; }
+    .mi-sun {
+      position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+      width: 30px; height: 30px; border-radius: 50%;
+      background: radial-gradient(circle, #ffd76e 55%, #f0a53f);
+      box-shadow: 0 0 16px rgba(240, 197, 63, 0.5); animation: sun-pulse 4s ease-in-out infinite;
+    }
+    .mi-cloud {
+      position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%);
+      width: 40px; height: 15px; border-radius: 999px; background: #9db3ab;
+      animation: mc-bob 4s ease-in-out infinite;
+    }
+    .mi-cloud::before { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: inherit; top: -9px; left: 7px; }
+    .mi-cloud::after { content: ""; position: absolute; width: 13px; height: 13px; border-radius: 50%; background: inherit; top: -6px; left: 22px; }
+    @keyframes mc-bob { 50% { transform: translate(-50%, -60%); } }
+    .mi-drop { position: absolute; width: 2.5px; height: 8px; border-radius: 3px; background: #4aa3f0; top: 62%; animation: kdrop 0.95s linear infinite; }
+    .mi-bolt { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); font-size: 0.95rem; animation: bolt 3s infinite; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      .panel { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="fx-canvas"></canvas>
+  <header>
+    <img src="{{ url_for('static', filename='favicon.png') }}" alt="NDMA">
+    <div class="h-brand" id="h-title">Pak-ClimInt <small id="h-pipe">Agent Dashboard</small></div>
+    <div id="h-sub"><span class="live-dot"></span>—</div>
+    <div class="h-right">
+      <button class="h-btn" id="btn-summary" style="display:none">🧾 Summary</button>
+      <a class="h-btn" href="/">🗺️ Map</a>
+      <a class="h-btn" href="/risk">📊 Risk</a>
+      <a class="h-btn" href="/logout" title="Sign out">⏻</a>
+    </div>
+  </header>
+
+  <main>
+    <div id="loading" style="display:none">
+      <div class="skeleton" style="height:110px"></div>
+      <div class="skeleton" style="height:110px"></div>
+      <div class="skeleton" style="height:420px"></div>
+      <div style="color:var(--dim); text-align:center" id="loading-note">Running the agent…</div>
+    </div>
+
+    <div id="dash" style="display:none">
+      <div id="hero">
+        <div id="hero-icon">🛰️</div>
+        <div>
+          <div id="hero-big">—</div>
+          <div id="hero-desc"></div>
+        </div>
+        <div class="tickers" id="tickers"></div>
+      </div>
+
+      <div class="cards" id="cards"></div>
+
+      <div class="panel" id="map-panel">
+        <h3 id="map-title">🗺️ Live layers</h3>
+        <div class="layer-chips" id="layer-chips"></div>
+        <div id="big-map"></div>
+        <div class="sec-note" id="map-note"></div>
+      </div>
+
+      <div class="panel" id="charts-panel">
+        <h3 id="charts-title">📈 Analysis</h3>
+        <div class="grid2" id="charts"></div>
+        <div id="table-wrap" style="margin-top:1rem"></div>
+        <div class="sec-note" id="charts-note"></div>
+      </div>
+
+      <footer id="foot"></footer>
+    </div>
+  </main>
+
+  <div id="sum-overlay">
+    <div id="sum-box">
+      <h3>🧾 Plain-language summary <button class="x" id="sum-close" title="Close">✕</button></h3>
+      <div id="sum-body"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="{{ url_for('static', filename='js/agent.js') }}"></script>
+</body>
+</html>

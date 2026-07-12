@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pak-ClimInt — Multi Agentic Climate Intelligence</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.png') }}">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div id="map"></div>
+  <!-- 3D globe view (MapLibre, globe projection) — sits over the flat
+       Leaflet map; 🌍 toggles between the two. Every AOI selection and
+       pipeline result is mirrored onto it. -->
+  <div id="globe-map"></div>
+
+  <!-- Floating GIS Layers panel -->
+  <aside id="layers-panel" class="glass panel">
+    <header class="panel-header" id="layers-drag-handle">
+      <span class="panel-title">🗺️ GIS Layers</span>
+      <button class="icon-btn" id="layers-collapse" title="Collapse">−</button>
+    </header>
+    <div class="panel-body" id="layers-body">
+      <input type="search" id="layer-search" placeholder="Search layers…" autocomplete="off">
+      <div id="layer-groups"><!-- groups injected --></div>
+    </div>
+  </aside>
+
+  <!-- Floating Assessment panel -->
+  <aside id="assess-panel" class="glass panel">
+    <header class="panel-header" id="assess-drag-handle">
+      <span class="panel-title">⚖️ Risk assessment</span>
+      <button class="icon-btn" id="assess-collapse" title="Collapse">−</button>
+    </header>
+    <div class="panel-body" id="assess-body">
+      <div class="row">
+        <input type="search" id="aoi-search" placeholder="🔍 Search area (basin / province / district)…" autocomplete="off">
+      </div>
+      <div class="row">
+        <select id="basin-select" title="Area of interest"></select>
+      </div>
+      <div class="pipeline-row" id="pipeline-buttons">
+        <button class="pipe-btn" data-pipe="weather" title="GPM observed + GFS forecast rain" disabled>🌧️ Weather</button>
+        <button class="pipe-btn" data-pipe="disaster" title="GloFAS flood hazard at stations" disabled>🌊 Disaster</button>
+        <button class="pipe-btn" data-pipe="terrain" title="DEM / slope / flow accumulation" disabled>⛰️ Terrain</button>
+        <button class="pipe-btn" data-pipe="population" title="WorldPop exposure" disabled>👥 Exposure</button>
+        <button class="pipe-btn" data-pipe="urban" title="Urban flood indicator — 24h rain over 17 major cities (nationwide)" style="grid-column: 1 / -1" disabled>🏙️ Urban flooding (cities, nationwide)</button>
+        <button id="run-risk" class="primary-btn" title="All agents + decision + report" disabled>⚖️ Full risk assessment</button>
+      </div>
+      <div id="assess-placeholder">Please select an AOI/basin to view the risk assessment.</div>
+      <div id="pipeline-result"></div>
+      <div id="risk-banner"></div>
+      <p id="warning-text"></p>
+      <div class="row" id="report-row" style="display:none">
+        <button id="save-report" class="pipe-btn" title="Save the displayed assessment as Markdown + JSON without re-running agents">💾 Save report</button>
+      </div>
+      <div id="save-confirm"></div>
+    </div>
+  </aside>
+
+  <!-- Floating map controls (right edge) -->
+  <div id="map-controls" class="ctrl-stack">
+    <button class="ctrl-btn glass" id="ctrl-zoom-in" title="Zoom in">+</button>
+    <button class="ctrl-btn glass" id="ctrl-zoom-out" title="Zoom out">−</button>
+    <button class="ctrl-btn glass" id="ctrl-locate" title="My location">◎</button>
+    <button class="ctrl-btn glass" id="ctrl-fullscreen" title="Fullscreen">⛶</button>
+    <button class="ctrl-btn glass" id="ctrl-measure" title="Measure distance">📏</button>
+    <button class="ctrl-btn glass" id="ctrl-draw" title="Draw a box — becomes the AOI for all pipelines">▱</button>
+    <button class="ctrl-btn glass" id="ctrl-basemap" title="Toggle basemap">🛰️</button>
+    <button class="ctrl-btn glass" id="ctrl-globe" title="3D globe / flat map">🌍</button>
+    <button class="ctrl-btn glass" id="ctrl-chat" title="Alpha — AI assistant, runs pipelines by chat">💬</button>
+    <button class="ctrl-btn glass" id="ctrl-risk-page" title="Risk Assessment dashboard (full page)">📊</button>
+    <button class="ctrl-btn glass" id="ctrl-logout" title="Sign out">⏻</button>
+  </div>
+
+  <!-- Floating AI assistant (hideable via 💬). Orchestrates the same
+       agent pipelines as the buttons — read-only, never edits data. -->
+  <aside id="chat-panel" class="glass panel" style="display:none">
+    <header class="panel-header" id="chat-drag-handle">
+      <span class="panel-title">🤖 Alpha</span>
+      <span>
+        <button class="icon-btn" id="chat-voice" title="Speak replies aloud (toggle)">🔇</button>
+        <button class="icon-btn" id="chat-collapse" title="Collapse">−</button>
+        <button class="icon-btn" id="chat-hide" title="Hide">✕</button>
+      </span>
+    </header>
+    <div class="panel-body" id="chat-body">
+      <div id="chat-log">
+        <div class="chat-bot">Hi, I’m <b>Alpha</b>. Ask me to run any pipeline — e.g.
+          <i>“full risk for Sindh”</i>, <i>“how much rain is forecast for
+          Lahore district?”</i>, <i>“compare discharge on Chenab vs
+          Jhelum”</i>. I run the real agents and quote their numbers —
+          I never make values up.</div>
+      </div>
+      <form id="chat-form" autocomplete="off">
+        <input id="chat-input" placeholder="Ask the agents…">
+        <button type="button" id="chat-mic" title="Voice input">🎤</button>
+        <button type="submit" id="chat-send" title="Send">➤</button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- On-map legend: scales for whichever layers are switched on. A
+       floating, draggable, collapsible panel like the other two. -->
+  <aside id="map-legend" class="glass panel" style="display:none">
+    <header class="panel-header" id="legend-drag-handle">
+      <span class="panel-title">📊 Legend</span>
+      <button class="icon-btn" id="legend-collapse" title="Collapse">−</button>
+    </header>
+    <div class="panel-body" id="legend-body"></div>
+  </aside>
+
+  <!-- Status bar -->
+  <footer id="status-bar" class="glass">
+    <span id="coords">—</span>
+    <span id="measure-readout"></span>
+    <span id="backend-status"></span>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

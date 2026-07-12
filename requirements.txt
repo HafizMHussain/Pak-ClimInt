@@ -1,0 +1,10 @@
+earthengine-api
+geemap
+geedim
+flask
+streamlit
+cdsapi
+xarray
+netcdf4
+anthropic
+pytest

@@ -1,0 +1,12 @@
+# Production image dependencies — the Flask/agents path only.
+# (Streamlit webapp + pytest are dev-only, see requirements.txt.)
+earthengine-api
+geemap
+geedim
+flask
+cdsapi
+xarray
+netcdf4
+anthropic
+requests
+gunicorn
