@@ -142,6 +142,14 @@ function dayIcon(x) {
   return `<div class="mi-sun" style="opacity:.55; left:38%"></div><div class="mi-cloud"></div>`;
 }
 
+// one-word condition per forecast day (same thresholds as the icon)
+function dayLabel(x) {
+  if (x.precip_mm >= 8 || x.precip_probability_pct >= 60) return "Stormy";
+  if (x.precip_mm >= 0.5) return "Rain";
+  if ((x.pictocode || 9) <= 2) return "Sunny";
+  return "Cloudy";
+}
+
 function dayStripHtml(days) {
   const wd = (x) => new Date(x.date + "T00:00").toLocaleDateString("en", { weekday: "short" });
   return `<div class="panel" id="day-panel"><h3>📅 7-day outlook — Meteoblue, AOI centre</h3>
@@ -149,10 +157,59 @@ function dayStripHtml(days) {
       <div class="day-card" title="humidity ${x.humidity_mean_pct}% · wind max ${x.wind_max_ms} m/s · rain probability ${x.precip_probability_pct}%">
         <div class="dc-wd">${wd(x)}</div>
         <div class="dc-icon">${dayIcon(x)}</div>
+        <div class="dc-desc">${dayLabel(x)}</div>
         <div class="dc-t">${Math.round(x.temp_max_c)}°</div>
         <div class="dc-tmin">${Math.round(x.temp_min_c)}°</div>
         <div class="dc-rain">${x.precip_mm > 0 ? x.precip_mm + " mm" : ""}</div>
       </div>`).join("")}</div></div>`;
+}
+
+/* ---------------- one-line headline (top of the page) ---------------- */
+// Compact "what's the story" line — every value quoted from the agent JSON.
+function buildHeadline(pipe, d) {
+  const wd = (x) => new Date(x.date + "T00:00").toLocaleDateString("en", { weekday: "short" });
+  if (pipe === "weather") {
+    const o24 = d.observed_rain_mm.last_24h.basin_mean;
+    const f72 = d.forecast_rain_mm.next_72h.basin_mean;
+    const days = d.forecast_daily?.days || [];
+    let ahead = "";
+    if (days.length) {
+      const wettest = days.reduce((a, b) => (b.precip_mm > a.precip_mm ? b : a));
+      ahead = wettest.precip_mm >= 0.5
+        ? ` Wettest day ahead: <b>${wd(wettest)}</b> (${wettest.precip_mm} mm).`
+        : " No rain day expected this week.";
+    }
+    return `<b>${o24 ?? "n/a"} mm</b> of rain fell in the last 24 h; about <b>${f72 ?? "n/a"} mm</b> more is forecast over the next 3 days.${ahead}`;
+  }
+  if (pipe === "disaster") {
+    const stations = d.stations || {}, names = Object.keys(stations);
+    const above = names.filter((n) => stations[n].flood_category !== "normal");
+    const worst = d.worst_station;
+    if (!worst) return "No river station falls inside this area.";
+    return above.length
+      ? `<b>${above.length}/${names.length}</b> stations above normal — highest: <b>${worst.name}</b> at ${fmt(worst.peak_m3s)} m³/s (<b>${worst.flood_category.replace(/_/g, " ")}</b>).`
+      : `All <b>${names.length}</b> station(s) in their normal range — highest flow <b>${worst.name}</b> at ${fmt(worst.peak_m3s)} m³/s.`;
+  }
+  if (pipe === "terrain") {
+    return `<b>${fmt(d.basin_area_km2)} km²</b> analysed — elevation, slope and river network cached for the other agents.`;
+  }
+  if (pipe === "population") {
+    const pct = d.total_population ? Math.round(100 * d.floodplain_population / d.total_population) : null;
+    return `<b>${fmt(d.total_population)}</b> people live here; <b>${fmt(d.floodplain_population)}</b>${pct != null ? ` (${pct}%)` : ""} are on flood-prone flat land (proxy).`;
+  }
+  if (pipe === "urban") {
+    const flagged = d.flagged || [];
+    return flagged.length
+      ? `<b>${flagged.join(", ")}</b> flagged for possible urban flooding — heaviest 24 h rain <b>${d.max_obs24_mm} mm</b>.`
+      : `All <b>${d.cities.length}</b> cities clear — heaviest 24 h rain <b>${d.max_obs24_mm} mm</b>, below the ${d.thresholds_mm_24h.watch} mm watch level.`;
+  }
+  return "";
+}
+
+function showHeadline(text) {
+  if (!text) return;
+  $("headline").innerHTML = `<span class="hl-tag">At a glance</span><span>${text}</span>`;
+  $("headline").style.display = "";
 }
 
 /* ---------------- plain-language summary modal ---------------- */
@@ -296,6 +353,7 @@ async function boot() {
   $("dash").style.display = "";
   await buildMap(meta.layers);
   ({ weather, disaster, terrain, population, urban })[PIPE](data);
+  showHeadline(buildHeadline(PIPE, data));
   wireSummary(buildSummary(PIPE, data));
   reveal();
   const storm = (PIPE === "weather" && (data.forecast_rain_mm?.next_72h?.basin_mean || 0) >= 15)

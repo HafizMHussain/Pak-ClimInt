@@ -49,6 +49,23 @@
 
     main { max-width: 1240px; margin: 0 auto; padding: 1.6rem 1.4rem 4rem; }
 
+    /* one-line data headline under the hero */
+    #headline {
+      display: flex; align-items: center; gap: 0.65rem;
+      background: rgba(53, 196, 141, 0.07); border: 1px solid rgba(53, 196, 141, 0.25);
+      border-left: 3px solid var(--accent); border-radius: 12px;
+      padding: 0.6rem 1rem; margin-bottom: 1.2rem;
+      font-size: 0.92rem; line-height: 1.45;
+      animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    }
+    #headline b { color: var(--accent); }
+    #headline .hl-tag {
+      flex: 0 0 auto; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--accent);
+      border: 1px solid rgba(53, 196, 141, 0.4); border-radius: 999px;
+      padding: 0.18rem 0.6rem;
+    }
+
     /* cards */
     .cards {
       display: grid; gap: 0.9rem;
@@ -155,6 +172,7 @@
     .day-card:hover { transform: translateY(-4px) scale(1.03); border-color: var(--accent); box-shadow: 0 10px 26px rgba(53,196,141,0.15); }
     .dc-wd { color: var(--dim); font-size: 0.72rem; font-weight: 600; text-transform: uppercase; }
     .dc-icon { position: relative; height: 54px; margin: 0.35rem 0; }
+    .dc-desc { color: var(--dim); font-size: 0.68rem; margin-bottom: 2px; }
     .dc-t { font-weight: 700; font-size: 1.02rem; }
     .dc-tmin { color: var(--dim); font-size: 0.8rem; }
     .dc-rain { color: #6fc7ff; font-size: 0.72rem; margin-top: 2px; min-height: 1em; }
@@ -348,6 +366,8 @@
         </div>
         <div class="tickers" id="tickers"></div>
       </div>
+
+      <div id="headline" style="display:none"></div>
 
       <div class="cards" id="cards"></div>
 

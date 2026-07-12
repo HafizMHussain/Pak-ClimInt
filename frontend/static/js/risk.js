@@ -251,6 +251,7 @@ function render(spec, d) {
   fancyFX((f72.basin_mean || 0) >= 15 || ["high", "severe", "extreme"].includes(level));
 
   renderCharts(d, w, rv, pop);
+  renderHeadline(d);
   renderDayStrip(w.forecast_daily?.days || []);
   renderHydro(spec, rv);
   renderAI(d, w);
@@ -519,6 +520,14 @@ function dayIcon(x) {
   return `<div class="mi-sun" style="opacity:.55; left:38%"></div><div class="mi-cloud"></div>`;
 }
 
+// one-word condition per forecast day (same thresholds as the icon)
+function dayLabel(x) {
+  if (x.precip_mm >= 8 || x.precip_probability_pct >= 60) return "Stormy";
+  if (x.precip_mm >= 0.5) return "Rain";
+  if ((x.pictocode || 9) <= 2) return "Sunny";
+  return "Cloudy";
+}
+
 function renderDayStrip(days) {
   if (!days.length) return;
   const wd = (x) => new Date(x.date + "T00:00").toLocaleDateString("en", { weekday: "short" });
@@ -526,10 +535,27 @@ function renderDayStrip(days) {
     <div class="day-card" title="humidity ${x.humidity_mean_pct}% · wind max ${x.wind_max_ms} m/s · rain probability ${x.precip_probability_pct}%">
       <div class="dc-wd">${wd(x)}</div>
       <div class="dc-icon">${dayIcon(x)}</div>
+      <div class="dc-desc">${dayLabel(x)}</div>
       <div class="dc-t">${Math.round(x.temp_max_c)}°</div>
       <div class="dc-tmin">${Math.round(x.temp_min_c)}°</div>
       <div class="dc-rain">${x.precip_mm > 0 ? x.precip_mm + " mm" : ""}</div>
     </div>`).join("")}</div>`;
+}
+
+/* one-line headline under the hero — quoted from the coordinator JSON */
+function renderHeadline(d) {
+  const w = d.agents?.weather || {};
+  const rv = d.agents?.river || {};
+  const f72 = w.forecast_rain_mm?.next_72h?.basin_mean;
+  const worst = rv.worst_station;
+  const bits = [
+    `Risk <b>${(d.risk_level || "?").toUpperCase()} ${d.risk_score}/100</b> → <b>${(d.decision?.action || "n/a").replace(/_/g, " ")}</b>`,
+    f72 != null ? `<b>${f72} mm</b> rain expected in 3 days` : null,
+    worst ? `rivers: <b>${worst.name}</b> ${worst.flood_category.replace(/_/g, " ")}` : null,
+  ].filter(Boolean);
+  $("headline").innerHTML =
+    `<span class="hl-tag">At a glance</span><span>${bits.join(" · ")}.</span>`;
+  $("headline").style.display = "";
 }
 
 function renderActions(d, pop) {
