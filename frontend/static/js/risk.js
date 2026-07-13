@@ -625,9 +625,13 @@ function renderHeadline(d) {
   Object.entries(rv.stations || {}).forEach(([n, st]) => {
     items.push(`<b>${n}</b>: ${st.flood_category.replace(/_/g, " ")}, peak ${fmt(st.peak_m3s)} m³/s`);
   });
+  // per-day format: Day: <condition + rain first>, <temp max/min>
+  // e.g. "Saturday: Rain 3.8 mm (37%), 36°/30°"
   (w.forecast_daily?.days || []).forEach((x) => {
-    items.push(`<b>${wd(x)}</b>: ${dayLabel(x)}, ${Math.round(x.temp_max_c)}°/${Math.round(x.temp_min_c)}°` +
-      (x.precip_mm >= 0.5 ? `, ${x.precip_mm} mm rain (${x.precip_probability_pct}%)` : ""));
+    const prec = x.precip_mm >= 0.5
+      ? `${dayLabel(x)} ${x.precip_mm} mm (${x.precip_probability_pct}%)`
+      : dayLabel(x);
+    items.push(`<b>${wd(x)}</b>: ${prec}, ${Math.round(x.temp_max_c)}°/${Math.round(x.temp_min_c)}°`);
   });
   if (pop.total_population) {
     items.push(`Exposure: <b>${fmt(pop.total_population)}</b> people, <b>${fmt(pop.floodplain_population)}</b> on floodplain`);

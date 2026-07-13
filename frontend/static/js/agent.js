@@ -176,9 +176,13 @@ function buildHeadline(pipe, d) {
     const f72 = d.forecast_rain_mm.next_72h.basin_mean;
     items.push(`Last 24 h: <b>${o24 ?? "n/a"} mm</b> rain observed`);
     items.push(`Next 3 days: <b>${f72 ?? "n/a"} mm</b> forecast`);
+    // per-day format: Day: <condition + rain first>, <temp max/min>
+    // e.g. "Saturday: Rain 3.8 mm (37%), 36°/29°"
     (d.forecast_daily?.days || []).forEach((x) => {
-      items.push(`<b>${wd(x)}</b>: ${dayLabel(x)}, ${Math.round(x.temp_max_c)}°/${Math.round(x.temp_min_c)}°` +
-        (x.precip_mm >= 0.5 ? `, ${x.precip_mm} mm rain (${x.precip_probability_pct}%)` : ""));
+      const prec = x.precip_mm >= 0.5
+        ? `${dayLabel(x)} ${x.precip_mm} mm (${x.precip_probability_pct}%)`
+        : dayLabel(x);
+      items.push(`<b>${wd(x)}</b>: ${prec}, ${Math.round(x.temp_max_c)}°/${Math.round(x.temp_min_c)}°`);
     });
   } else if (pipe === "disaster") {
     const stations = d.stations || {};
