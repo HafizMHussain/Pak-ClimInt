@@ -6,6 +6,8 @@
   <title>Risk Assessment — Pak-ClimInt</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script>/* apply the saved theme before first paint (no flash) */
+    document.documentElement.dataset.theme = localStorage.getItem("pakclimint.theme") || "dark";</script>
   <style>
     :root {
       --bg: #0c1210; --surface-1: #131c18; --surface-2: #182420;
@@ -17,10 +19,31 @@
       --lvl-low: #2e7d52; --lvl-moderate: #b9950a;
       --lvl-high: #c46a0e; --lvl-severe: #b03434;
     }
+    /* ---------- light theme (toggled via html[data-theme]) ---------- */
+    html[data-theme="light"] {
+      --bg: #edf2ef; --surface-1: #ffffff; --surface-2: #f2f6f3;
+      --border: rgba(12, 32, 22, 0.12); --text: #17251e; --dim: #5a6b64;
+      --accent: #178a60; --blue: #1f6fc0; --danger: #c04747;
+      --bg-glow: #dfeae4; --header-bg: rgba(255, 255, 255, 0.86);
+      --btn-bg: rgba(0, 0, 0, 0.05); --btn-bg-hover: rgba(0, 0, 0, 0.10);
+      --skeleton-mid: #e2eae5;
+    }
+    html[data-theme="dark"], :root {
+      --bg-glow: #14251e; --header-bg: rgba(12, 18, 16, 0.88);
+      --btn-bg: rgba(255, 255, 255, 0.05); --btn-bg-hover: rgba(255, 255, 255, 0.11);
+      --skeleton-mid: #1d2a24;
+    }
+    html[data-theme="light"] body::before, html[data-theme="light"] body::after { opacity: 0.08; }
+    html[data-theme="light"] #hero-temp {
+      background: linear-gradient(100deg, #17251e 38%, #178a60 50%, #17251e 62%);
+      background-size: 220% 100%; -webkit-background-clip: text; background-clip: text;
+    }
+    html[data-theme="light"] tr.st-row:hover { background: rgba(0, 0, 0, 0.04); }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: "Segoe UI", system-ui, sans-serif;
-      background: radial-gradient(1200px 700px at 85% -10%, #14251e 0%, var(--bg) 55%);
+      background: radial-gradient(1200px 700px at 85% -10%, var(--bg-glow, #14251e) 0%, var(--bg) 55%);
       color: var(--text); min-height: 100vh; font-size: 15px;
     }
     a { color: var(--blue); }
@@ -29,7 +52,7 @@
     header {
       position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap;
       align-items: center; gap: 0.9rem; padding: 0.7rem 1.4rem;
-      background: rgba(12, 18, 16, 0.88); backdrop-filter: blur(14px);
+      background: var(--header-bg, rgba(12, 18, 16, 0.88)); backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--border);
     }
     header img { width: 34px; height: 34px; }
@@ -42,10 +65,10 @@
     }
     .h-btn {
       padding: 0.42rem 0.9rem; border: 1px solid var(--border); border-radius: 9px;
-      background: rgba(255, 255, 255, 0.05); color: var(--text); cursor: pointer;
+      background: var(--btn-bg, rgba(255, 255, 255, 0.05)); color: var(--text); cursor: pointer;
       font-size: 0.82rem; text-decoration: none; transition: background 0.15s;
     }
-    .h-btn:hover { background: rgba(255, 255, 255, 0.11); }
+    .h-btn:hover { background: var(--btn-bg-hover, rgba(255, 255, 255, 0.11)); }
 
     main { max-width: 1240px; margin: 0 auto; padding: 1.6rem 1.4rem 4rem; }
 
@@ -209,7 +232,7 @@
     @keyframes mi-zap { 0%, 86%, 100% { opacity: 0; } 89%, 95% { opacity: 1; } 92% { opacity: 0.15; } }
 
     /* skeletons */
-    .skeleton { border-radius: 14px; background: linear-gradient(100deg, var(--surface-1) 40%, #1d2a24 50%, var(--surface-1) 60%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+    .skeleton { border-radius: 14px; background: linear-gradient(100deg, var(--surface-1) 40%, var(--skeleton-mid, #1d2a24) 50%, var(--surface-1) 60%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
     @keyframes shimmer { to { background-position: -200% 0; } }
     #loading .skeleton { margin-bottom: 1rem; }
 
@@ -235,7 +258,7 @@
     /* hero conditions strip */
     #hero {
       display: flex; flex-wrap: wrap; align-items: center; gap: 1.6rem;
-      background: linear-gradient(120deg, var(--surface-1), #14251e 70%);
+      background: linear-gradient(120deg, var(--surface-1), var(--bg-glow, #14251e) 70%);
       border: 1px solid var(--border); border-radius: 16px;
       padding: 1.2rem 1.6rem; margin-bottom: 1.2rem; overflow: hidden;
       position: relative;
@@ -310,7 +333,7 @@
     #hero {
       border: 1px solid transparent;
       background:
-        linear-gradient(120deg, var(--surface-1), #14251e 70%) padding-box,
+        linear-gradient(120deg, var(--surface-1), var(--bg-glow, #14251e) 70%) padding-box,
         conic-gradient(from var(--ga), #35c48d, #4aa3f0, #9085e9, #35c48d) border-box;
       animation: spin-border 7s linear infinite;
     }
@@ -349,6 +372,7 @@
     <div id="h-aoi"><span class="live-dot"></span>—</div>
     <div id="h-chip">…</div>
     <button class="h-btn" id="btn-summary" style="display:none">🧾 Summary</button>
+    <button class="h-btn" id="btn-theme" title="Light / dark theme">🌙</button>
     <a class="h-btn" href="/">🗺️ Back to map</a>
     <a class="h-btn" href="/logout" title="Sign out">⏻</a>
   </header>

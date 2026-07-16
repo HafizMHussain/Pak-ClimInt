@@ -24,8 +24,12 @@ const META = {
   urban: { icon: "🏙️", name: "Urban Flood Agent", layers: [] },
 };
 
-Chart.defaults.color = "#8fa39a";
-Chart.defaults.borderColor = "rgba(255,255,255,0.08)";
+// ink/grid colours are set by chartfx.js from the active theme; only
+// set them here as a fallback if chartfx did not load
+if (!window.__chartInkSet) {
+  Chart.defaults.color = "#8fa39a";
+  Chart.defaults.borderColor = "rgba(255,255,255,0.08)";
+}
 Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
 Chart.defaults.animation = { duration: 950, easing: "easeOutQuart" };
 
@@ -288,7 +292,7 @@ function chartBox(id, title) {
 let map = null;
 async function buildMap(layerIds) {
   map = L.map("big-map", { zoomControl: true, attributionControl: false });
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 14 }).addTo(map);
+  L.tileLayer(`https://{s}.basemaps.cartocdn.com/${(window.__theme && window.__theme.mapTiles) || "dark_all"}/{z}/{x}/{y}{r}.png`, { maxZoom: 14 }).addTo(map);
   map.setView([30.5, 70.5], 5);
   if (SPEC && SPEC !== "pakistan") {
     try {
@@ -601,7 +605,7 @@ function population(d) {
   new Chart($("c1"), { type: "doughnut", data: {
     labels: ["Floodplain (proxy)", "Rest of AOI"],
     datasets: [{ data: [d.floodplain_population, Math.max(0, d.total_population - d.floodplain_population)],
-      backgroundColor: [SERIES[2], SERIES[1]], borderWidth: 2, borderColor: "#131c18" }] },
+      backgroundColor: [SERIES[2], SERIES[1]], borderWidth: 2, borderColor: (window.__theme && window.__theme.surface) || "#131c18" }] },
     options: { maintainAspectRatio: false, cutout: "62%",
       animation: { animateRotate: true, duration: 1600, easing: "easeOutQuart" },
       animations: { colors: false } } });

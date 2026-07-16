@@ -5,7 +5,40 @@
 (() => {
   if (typeof Chart === "undefined") return;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const ACCENT = "53,196,141";
+  const LIGHT = (document.documentElement.dataset.theme || "dark") === "light";
+  const ACCENT = LIGHT ? "23,138,96" : "53,196,141";
+  // theme-aware ink for the glass tooltip + Chart.js axes/grid/legend
+  const TIP_BG = LIGHT ? "rgba(255,255,255,0.92)" : "rgba(16,25,21,0.82)";
+  const TIP_TEXT = LIGHT ? "#17251e" : "#e8f0ec";
+  const TIP_TITLE = LIGHT ? "#178a60" : "#7df2c5";
+  const TIP_SUB = LIGHT ? "#5a6b64" : "#9db3ab";
+  const AXIS = LIGHT ? "#5a6b64" : "#8fa39a";
+  const GRID = LIGHT ? "rgba(12,32,22,0.10)" : "rgba(255,255,255,0.08)";
+  const SHADOW = LIGHT ? "rgba(0,0,0,0.16)" : "rgba(0,0,0,0.38)";
+
+  // Chart.js global ink follows the theme (agent.js/risk.js run after us
+  // and check window.__chartInkSet before touching these defaults)
+  Chart.defaults.color = AXIS;
+  Chart.defaults.borderColor = GRID;
+  window.__chartInkSet = true;
+  // theme values agent.js/risk.js reuse (gauge text, doughnut gaps, basemap)
+  window.__theme = {
+    light: LIGHT,
+    ink: LIGHT ? "#17251e" : "#e8f0ec",
+    dim: AXIS,
+    surface: LIGHT ? "#ffffff" : "#131c18",
+    mapTiles: LIGHT ? "light_all" : "dark_all",
+  };
+
+  /* ---------- light/dark toggle (button lives in each page header) ---------- */
+  const themeBtn = document.getElementById("btn-theme");
+  if (themeBtn) {
+    themeBtn.textContent = LIGHT ? "☀️" : "🌙";
+    themeBtn.addEventListener("click", () => {
+      localStorage.setItem("pakclimint.theme", LIGHT ? "dark" : "light");
+      location.reload(); // charts re-render with the new ink colours (data stays cached)
+    });
+  }
 
   /* ---------- injected styles (glass tooltip + tilting boxes) ---------- */
   const style = document.createElement("style");
@@ -13,32 +46,32 @@
     #glass-tip {
       position: fixed; z-index: 300; pointer-events: none; opacity: 0;
       transform: translate(-50%, calc(-100% - 16px));
-      background: rgba(16, 25, 21, 0.82);
+      background: ${TIP_BG};
       backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
       border: 1px solid rgba(${ACCENT}, 0.45); border-radius: 12px;
-      padding: 0.55rem 0.85rem; font-size: 0.8rem; color: #e8f0ec;
+      padding: 0.55rem 0.85rem; font-size: 0.8rem; color: ${TIP_TEXT};
       font-family: "Segoe UI", system-ui, sans-serif; max-width: 340px;
-      box-shadow: 0 14px 38px rgba(0,0,0,0.55), 0 0 26px rgba(${ACCENT}, 0.13);
+      box-shadow: 0 14px 38px ${SHADOW}, 0 0 26px rgba(${ACCENT}, 0.13);
       transition: opacity 0.14s ease, left 0.07s linear, top 0.07s linear;
     }
     #glass-tip::after { /* caret */
       content: ""; position: absolute; left: 50%; bottom: -6px;
       width: 10px; height: 10px; transform: translateX(-50%) rotate(45deg);
-      background: rgba(16, 25, 21, 0.82);
+      background: ${TIP_BG};
       border-right: 1px solid rgba(${ACCENT}, 0.45);
       border-bottom: 1px solid rgba(${ACCENT}, 0.45);
     }
     #glass-tip .gt-title {
-      font-weight: 700; margin-bottom: 5px; color: #7df2c5;
+      font-weight: 700; margin-bottom: 5px; color: ${TIP_TITLE};
       font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
     }
     #glass-tip .gt-line { display: flex; align-items: center; gap: 7px; line-height: 1.55; white-space: nowrap; }
     #glass-tip .gt-line i { width: 9px; height: 9px; border-radius: 3px; flex: 0 0 auto; box-shadow: 0 0 8px currentColor; }
-    #glass-tip .gt-sub { color: #9db3ab; padding-left: 16px; white-space: normal; font-size: 0.75rem; line-height: 1.5; }
+    #glass-tip .gt-sub { color: ${TIP_SUB}; padding-left: 16px; white-space: normal; font-size: 0.75rem; line-height: 1.5; }
     .chart-box { transition: transform 0.12s ease-out, border-color 0.2s, box-shadow 0.25s; will-change: transform; }
     .chart-box.tilted {
       border-color: rgba(${ACCENT}, 0.55) !important;
-      box-shadow: 0 18px 44px rgba(0,0,0,0.45), 0 0 30px rgba(${ACCENT}, 0.10);
+      box-shadow: 0 18px 44px ${SHADOW}, 0 0 30px rgba(${ACCENT}, 0.10);
     }`;
   document.head.appendChild(style);
 
@@ -85,7 +118,7 @@
     beforeDatasetDraw(chart) {
       const ctx = chart.ctx;
       ctx.save();
-      ctx.shadowColor = "rgba(0, 0, 0, 0.38)";
+      ctx.shadowColor = SHADOW;
       ctx.shadowBlur = 10;
       ctx.shadowOffsetY = 5;
     },

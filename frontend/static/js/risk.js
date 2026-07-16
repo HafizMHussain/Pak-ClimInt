@@ -20,8 +20,12 @@ const CAT_COLORS = {
 const SERIES = ["#3987e5", "#199e70", "#c98500", "#9085e9", "#e66767"];
 
 /* ---------------- chart theme ---------------- */
-Chart.defaults.color = "#8fa39a";
-Chart.defaults.borderColor = "rgba(255,255,255,0.08)";
+// ink/grid colours are set by chartfx.js from the active theme; only
+// set them here as a fallback if chartfx did not load
+if (!window.__chartInkSet) {
+  Chart.defaults.color = "#8fa39a";
+  Chart.defaults.borderColor = "rgba(255,255,255,0.08)";
+}
 Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
 Chart.defaults.plugins.legend.labels.boxWidth = 12;
 Chart.defaults.plugins.legend.labels.boxHeight = 12;
@@ -327,10 +331,10 @@ function renderCharts(d, w, rv, pop) {
         const { ctx, chartArea } = chart;
         ctx.save();
         ctx.textAlign = "center";
-        ctx.fillStyle = "#e8f0ec";
+        ctx.fillStyle = (window.__theme && window.__theme.ink) || "#e8f0ec";
         ctx.font = "700 34px 'Segoe UI'";
         ctx.fillText(d.risk_score, (chartArea.left + chartArea.right) / 2, chartArea.bottom - 28);
-        ctx.fillStyle = "#8fa39a"; ctx.font = "12px 'Segoe UI'";
+        ctx.fillStyle = (window.__theme && window.__theme.dim) || "#8fa39a"; ctx.font = "12px 'Segoe UI'";
         ctx.fillText(`${(d.risk_level || "").toUpperCase()} · /100`, (chartArea.left + chartArea.right) / 2, chartArea.bottom - 8);
         ctx.restore();
       },
@@ -455,7 +459,7 @@ async function renderHydro(spec, rv) {
 
   /* mini map */
   miniMap = L.map("mini-map", { zoomControl: true, attributionControl: false });
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 14 }).addTo(miniMap);
+  L.tileLayer(`https://{s}.basemaps.cartocdn.com/${(window.__theme && window.__theme.mapTiles) || "dark_all"}/{z}/{x}/{y}{r}.png`, { maxZoom: 14 }).addTo(miniMap);
   miniMap.setView([30.5, 71.5], 5);
   try {
     const gj = await (await fetch(`/api/basin_outline?basin=${encodeURIComponent(spec)}`)).json();
