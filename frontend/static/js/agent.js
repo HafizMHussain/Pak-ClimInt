@@ -539,9 +539,9 @@ function disaster(d) {
       stations[n].flood_category === "normal" ? undefined : "rgba(230,103,103,0.16)"),
   })));
   $("charts").innerHTML = chartBox("c1", "Forecast discharge by lead time (m³/s)") +
-    `<div class="chart-box"><h4>Station categories</h4><table id="st-t">
+    `<div class="chart-box"><h4>Station categories — click a station to see it on the map</h4><table id="st-t">
        <thead><tr><th>Station</th><th>Peak m³/s</th><th>Category</th></tr></thead><tbody>${
-      names.map((n) => `<tr><td><span class="cat-dot" style="background:${CAT_COLORS[stations[n].flood_category]}"></span>${n}</td>
+      names.map((n) => `<tr class="st-row" data-st="${n}"><td><span class="cat-dot" style="background:${CAT_COLORS[stations[n].flood_category]}"></span>${n}</td>
         <td>${fmt(stations[n].peak_m3s)}</td><td>${stations[n].flood_category.replace(/_/g, " ")}</td></tr>`).join("")
     }</tbody></table></div>`;
   const leads = Object.keys(Object.values(stations)[0]?.forecast_discharge_m3s || {});
@@ -552,17 +552,29 @@ function disaster(d) {
     options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
       animation: { duration: 1200, easing: "easeOutQuart" }, animations: { colors: false } } });
   $("charts-note").textContent = "GloFAS control forecast — known ~2x low bias vs FFD cusecs at Chenab stations; relative ranking reliable.";
-  // station markers (pulse when above normal)
+  // station markers (pulse when above normal) + click-to-focus rows:
+  // clicking a station in the table flies the big map to it and opens
+  // its popup — works for every station in the list
   fetch("/api/basins").then((r) => r.json()).then((basins) => {
     const coords = {};
     basins.forEach((b) => b.stations.forEach((s) => (coords[s.name] = s)));
+    const stMarkers = {};
     names.forEach((n) => {
       const s = coords[n]; if (!s) return;
       const cat = stations[n].flood_category;
       const popup = `<b>${n}</b><br>Peak: ${fmt(stations[n].peak_m3s)} m³/s<br>Category: ${cat.replace(/_/g, " ")}`;
-      if (cat !== "normal") pulseMarker(s.lat, s.lon, CAT_COLORS[cat], popup);
-      else L.circleMarker([s.lat, s.lon], { radius: 8, weight: 2, color: "#0c1210", fillColor: CAT_COLORS[cat], fillOpacity: 0.95 }).bindPopup(popup).addTo(map);
+      stMarkers[n] = cat !== "normal"
+        ? pulseMarker(s.lat, s.lon, CAT_COLORS[cat], popup)
+        : L.circleMarker([s.lat, s.lon], { radius: 8, weight: 2, color: "#0c1210", fillColor: CAT_COLORS[cat], fillOpacity: 0.95 }).bindPopup(popup).addTo(map);
     });
+    document.querySelectorAll(".st-row").forEach((row) =>
+      row.addEventListener("click", () => {
+        const s = coords[row.dataset.st], m = stMarkers[row.dataset.st];
+        if (!s || !m) return;
+        $("map-panel").scrollIntoView({ behavior: "smooth", block: "center" });
+        map.flyTo([s.lat, s.lon], 11, { duration: 1.4 });
+        map.once("moveend", () => m.openPopup());
+      }));
   });
   $("map-note").textContent = "Blue lines: HydroSHEDS river network. Markers: FFD stations coloured by flood category (pulsing = above normal).";
 }
