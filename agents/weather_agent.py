@@ -178,8 +178,10 @@ class WeatherAgent:
     @staticmethod
     def _meteoblue_point(lat: float, lon: float) -> dict:
         """{"point", "conditions", "daily"} at a point from Meteoblue —
-        ONE combined `current_basic-1h_basic-day` request.
-          point:      station-quality current temperature (isobserveddata)
+        ONE combined `basic-1h_basic-day` request (both packages are on
+        the FREE TRIAL tier; the `current` observation package is not,
+        Meteoblue 403s the whole request if it is included).
+          point:      current-hour temperature from the hourly series
           conditions: now-hour humidity, wind, feels-like, pressure, UV,
                       rain probability (from the hourly series)
           daily:      7-day daily forecast incl. humidity and wind
@@ -191,9 +193,10 @@ class WeatherAgent:
             return empty
         try:
             r = requests.get(
-                "https://my.meteoblue.com/packages/current_basic-1h_basic-day",
+                "https://my.meteoblue.com/packages/basic-1h_basic-day",
                 params={"apikey": key, "lat": f"{lat:.4f}",
-                        "lon": f"{lon:.4f}", "format": "json"},
+                        "lon": f"{lon:.4f}", "format": "json",
+                        "tz": "Asia/Karachi"},
                 timeout=8)
             if not r.ok:
                 return empty
@@ -202,29 +205,33 @@ class WeatherAgent:
             return empty
 
         out = dict(empty)
-        cur = body.get("data_current") or {}
-        if cur.get("temperature") is not None:
-            out["point"] = {
-                "value": round(cur["temperature"], 1),
-                "observed": bool(cur.get("isobserveddata")),
-                "time_local": cur.get("time"),
-                "lat": round(lat, 3), "lon": round(lon, 3),
-                "source": "meteoblue current (AOI centroid)",
-            }
 
         def col(block, name, i):
             v = (block.get(name) or [])
             v = v[i] if i is not None and i < len(v) else None
             return round(v, 1) if isinstance(v, (int, float)) else v
 
-        # now-hour conditions from the hourly series (last hour <= now)
+        # now-hour = last hourly timestamp <= local (PKT) wall time;
+        # timestamps are "YYYY-mm-dd HH:MM" so string compare is safe
         hourly = body.get("data_1h") or {}
         times = hourly.get("time") or []
-        now_local = cur.get("time") or ""
+        pkt = dt.timezone(dt.timedelta(hours=5))
+        now_local = dt.datetime.now(pkt).strftime("%Y-%m-%d %H:%M")
         idx = None
         for i, t in enumerate(times):
             if t <= now_local:
                 idx = i
+        if idx is None and times:
+            idx = 0  # forecast starts in the future — take the first hour
+
+        if idx is not None and col(hourly, "temperature", idx) is not None:
+            out["point"] = {
+                "value": col(hourly, "temperature", idx),
+                "observed": False,  # free tier = model value, not a station
+                "time_local": times[idx],
+                "lat": round(lat, 3), "lon": round(lon, 3),
+                "source": "meteoblue basic-1h (AOI centroid)",
+            }
         if idx is not None:
             out["conditions"] = {
                 "time_local": times[idx],
